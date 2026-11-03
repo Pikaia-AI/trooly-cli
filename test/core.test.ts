@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { ApiClient, retryDelay } from '../src/http/client';
 import { paginate } from '../src/http/paginate';
 import { main } from '../src/index';
+import { CLI_VERSION } from '../src/version';
 import {
   docsUrl,
   loadOpenApi,
@@ -173,8 +174,11 @@ describe('request boundary', () => {
     ).toBe(0);
     expect(JSON.parse(output.join(''))).toEqual({ id: '9007199254740993' });
     expect(seen[0].headers.authorization).toBe('Bearer fake-core-key');
-    expect(seen[0].headers['x-trooly-cli-version']).toBe('0.1.0');
-    expect(seen[0].headers['user-agent']).toMatch(/^trooly-cli\/0.1.0 \(.+; .+\) node\//);
+    expect(seen[0].headers['x-trooly-cli-version']).toBe(CLI_VERSION);
+    const escapedVersion = CLI_VERSION.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    expect(seen[0].headers['user-agent']).toMatch(
+      new RegExp(`^trooly-cli/${escapedVersion} \\(.+; .+\\) node/`),
+    );
     expect(seen[0].headers['idempotency-key']).toMatch(/^[a-f0-9-]{36}$/);
     expect(seen[0].query).toEqual({ limit: '50', cursor: 'a+b' });
     expect(JSON.parse(seen[0].body)).toEqual({ id: '9007199254740993', title: 'Sample' });
