@@ -48,7 +48,10 @@ function validateMetadata(value: OAuthMetadata, apiBase: string): OAuthMetadata 
   }
   return value;
 }
-export async function discoverOAuth(base: string): Promise<OAuthMetadata> {
+export async function discoverOAuth(
+  base: string,
+  options: { refresh?: boolean } = {},
+): Promise<OAuthMetadata> {
   const apiBase = normalizeApiBase(base);
   const file = join(
     getPaths().cacheDir,
@@ -58,7 +61,7 @@ export async function discoverOAuth(base: string): Promise<OAuthMetadata> {
   const cached = await readJson<{ savedAt: number; metadata?: OAuthMetadata }>(file, {
     savedAt: 0,
   });
-  if (cached.metadata && Date.now() - cached.savedAt < 86400000) {
+  if (!options.refresh && cached.metadata && Date.now() - cached.savedAt < 86400000) {
     return validateMetadata(cached.metadata, apiBase);
   }
   const response = await fetch(`${apiBase}/.well-known/oauth-authorization-server`, {
@@ -66,6 +69,13 @@ export async function discoverOAuth(base: string): Promise<OAuthMetadata> {
     signal: AbortSignal.timeout(15000),
     redirect: 'error',
   });
+  if (response.status === 404) {
+    throw new CliError(
+      'This gateway has not enabled OAuth login yet. Use TROOLY_API_KEY instead.',
+      3,
+      'OAUTH_UNAVAILABLE',
+    );
+  }
   if (!response.ok) {
     throw new CliError(
       `OAuth discovery failed (${response.status}).`,
