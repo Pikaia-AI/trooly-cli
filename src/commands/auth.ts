@@ -109,6 +109,23 @@ function logoutCommand(command: Command): void {
     emit({ profile: profile.name, logged_out: true }, Boolean(opts.json));
   });
 }
+function statusCommand(command: Command): void {
+  command.action(async (_options, cmd: Command) => {
+    const opts = cmd.optsWithGlobals();
+    const profile = await resolveProfile(opts.profile);
+    const result = await new ApiClient({
+      apiBase: profile.apiBase,
+      profileName: profile.name,
+    }).request('GET', '/platform/v2/credential');
+    if (opts.json) emit(result.data, true);
+    else {
+      emit(
+        { profile: profile.name, gateway: profile.apiBase, ...(result.data as Credential) },
+        false,
+      );
+    }
+  });
+}
 export function registerAuth(program: Command): void {
   const auth = program.command('auth').description('Manage authentication');
   loginCommand(auth.command('login').description('Log in with OAuth'));
@@ -119,22 +136,8 @@ export function registerAuth(program: Command): void {
   logoutCommand(
     program.command('logout').description('Revoke authorization and clear local credentials'),
   );
-  auth
-    .command('status')
-    .description('Show the current credential identity')
-    .action(async (_options, cmd: Command) => {
-      const opts = cmd.optsWithGlobals();
-      const profile = await resolveProfile(opts.profile);
-      const result = await new ApiClient({
-        apiBase: profile.apiBase,
-        profileName: profile.name,
-      }).request('GET', '/platform/v2/credential');
-      if (opts.json) emit(result.data, true);
-      else {
-        emit(
-          { profile: profile.name, gateway: profile.apiBase, ...(result.data as Credential) },
-          false,
-        );
-      }
-    });
+  statusCommand(auth.command('status').description('Show the current credential identity'));
+  statusCommand(
+    program.command('whoami').description('Show the current account, organization and environment'),
+  );
 }

@@ -22,6 +22,7 @@ import { stringify } from 'yaml';
 import { registerSecrets } from '../src/output/json';
 import { emit } from '../src/output/render';
 import { table } from '../src/output/table';
+import { saveProfile } from '../src/config/profiles';
 
 const document: OpenApiDocument = {
   openapi: '3.0.3',
@@ -153,6 +154,103 @@ afterEach(async () => {
   vi.unstubAllEnvs();
 });
 const run = (...args: string[]) => main(['node', 'trooly', ...args]);
+describe('command help and identity', () => {
+  it.each([
+    [],
+    ['auth'],
+    ['profile'],
+    ['project'],
+    ['interview'],
+    ['study'],
+    ['study', 'draft'],
+    ['study', 'export'],
+    ['study', 'media'],
+    ['kb'],
+    ['doc'],
+    ['knowledge'],
+    ['webhook'],
+    ['usage'],
+    ['--json'],
+    ['auth', '--profile', 'research', '--json'],
+  ])('prints group help successfully for %j', async (...args) => {
+    expect(await run(...args)).toBe(0);
+    const firstOption = args.findIndex((arg) => arg.startsWith('-'));
+    const command = args.slice(0, firstOption < 0 ? undefined : firstOption).join(' ');
+    expect(output.join('')).toContain(`Usage: trooly${command ? ` ${command}` : ''} [options]`);
+    expect(output.join('')).toContain('Commands:');
+    expect(errors).toHaveLength(0);
+    expect(seen).toHaveLength(0);
+  });
+  it.each([
+    [['unknown-command'], "unknown command 'unknown-command'"],
+    [['auth', 'unknown-command'], "unknown command 'unknown-command'"],
+    [['help', 'unknown-command'], "unknown command 'unknown-command'"],
+    [['auth', 'help', 'unknown-command'], "unknown command 'unknown-command'"],
+    [['project', 'get'], "missing required argument 'id'"],
+    [['auth', '--unknown-option'], "unknown option '--unknown-option'"],
+    [['--profile'], 'argument missing'],
+    [['api', 'GET'], 'Specify METHOD and path'],
+  ])('retains readable usage errors for %j', async (args, message) => {
+    expect(await run(...args)).toBe(2);
+    expect(output).toHaveLength(0);
+    expect(errors.join('')).toContain(message);
+    expect(errors.join('')).toContain('USAGE_ERROR');
+    expect(errors.join('').match(/Error:/g)).toHaveLength(1);
+    expect(errors.join('')).not.toContain('(outputHelp)');
+    expect(seen).toHaveLength(0);
+  });
+  it.each([
+    [['help', 'auth'], 'Usage: trooly auth'],
+    [['auth', 'help', 'status'], 'Usage: trooly auth status'],
+  ])('prints explicit help for %j', async (args, usage) => {
+    expect(await run(...args)).toBe(0);
+    expect(output.join('')).toContain(usage);
+    expect(errors).toHaveLength(0);
+    expect(seen).toHaveLength(0);
+  });
+  it('describes whoami in root and command help', async () => {
+    for (const args of [['--help'], ['whoami', '--help']]) {
+      expect(await run(...args)).toBe(0);
+      expect(output.join('').replace(/\s+/g, ' ')).toContain(
+        'Show the current account, organization and environment',
+      );
+      output = [];
+    }
+    expect(errors).toHaveLength(0);
+    expect(seen).toHaveLength(0);
+  });
+  it.each([false, true])('matches auth status with profile selection (json=%s)', async (asJson) => {
+    const identity = {
+      credential: { type: 'api_key', id: null, environment: 'sandbox' },
+      principal: { type: 'user', id: '9007199254740993', name: 'Test User' },
+      organization: { id: '9007199254740995', name: 'Test Organization', type: 'team' },
+      permissions: ['project.read'],
+    };
+    await saveProfile('research', { api_base: base });
+    vi.stubEnv('TROOLY_API_BASE', undefined);
+    respond = (_req, res) => send(res, 200, { data: identity });
+    const flags = ['--profile', 'research', ...(asJson ? ['--json'] : [])];
+    expect(await run('auth', 'status', ...flags)).toBe(0);
+    const statusOutput = output.join('');
+    for (const args of [
+      ['whoami', ...flags],
+      [...flags, 'whoami'],
+    ]) {
+      output = [];
+      expect(await run(...args)).toBe(0);
+      expect(output.join('')).toBe(statusOutput);
+    }
+    if (asJson) expect(JSON.parse(statusOutput)).toEqual(identity);
+    else {
+      expect(statusOutput).toContain('research');
+      expect(statusOutput).toContain(base);
+    }
+    expect(seen.map(({ method, path }) => ({ method, path }))).toEqual(
+      Array.from({ length: 3 }, () => ({ method: 'GET', path: '/platform/v2/credential' })),
+    );
+    expect(errors).toHaveLength(0);
+  });
+});
 describe('request boundary', () => {
   it('sends required headers and preserves IDs and repeated query/field options', async () => {
     expect(

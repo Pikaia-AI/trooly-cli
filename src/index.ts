@@ -23,7 +23,18 @@ export function createProgram(): Command {
     .option('--yes', 'Confirm a destructive action')
     .addHelpText('after', HELP_FOOTER)
     .exitOverride();
-  program.configureOutput({ writeErr: () => {}, outputError: () => {} });
+  // Commander sends implicit group help to writeErr; keep it visible on stdout.
+  // Only suppress its error lines, which main renders in our standard format.
+  program.configureOutput({
+    writeErr: (text) => process.stdout.write(text),
+    outputError: () => {},
+  });
+  program.on('beforeAllHelp', ({ command, error }: { command: Command; error: boolean }) => {
+    // Unknown help targets also raise commander.help, but remain usage errors.
+    if (error && command.args[0] === 'help' && command.args[1]) {
+      throw new CliError(`unknown command '${command.args[1]}'`, 2, 'USAGE_ERROR');
+    }
+  });
   registerAuth(program);
   registerProfile(program);
   registerApi(program);
@@ -49,7 +60,12 @@ export async function main(argv = process.argv): Promise<number> {
     await program.parseAsync(argv);
     return 0;
   } catch (error) {
-    if (error instanceof CommanderError && error.exitCode === 0) return 0;
+    if (
+      error instanceof CommanderError &&
+      (error.exitCode === 0 || error.code === 'commander.help')
+    ) {
+      return 0;
+    }
     const normalized =
       error instanceof CommanderError
         ? new CliError(error.message.replace(/^error: /, ''), 2, 'USAGE_ERROR')

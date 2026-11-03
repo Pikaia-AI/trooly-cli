@@ -16,6 +16,8 @@ npx trooly@latest --help
 
 ```sh
 trooly login
+trooly whoami --json
+# Equivalent to:
 trooly auth status --json
 ```
 
@@ -122,6 +124,8 @@ Start with:
 
 ```sh
 trooly guide
+trooly whoami --json
+# Equivalent to:
 trooly auth status --json
 ```
 
