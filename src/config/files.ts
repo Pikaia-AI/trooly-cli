@@ -31,6 +31,12 @@ export async function restrictAccess(path: string): Promise<void> {
   if (!sid) {
     throw new CliError('Cannot determine the current Windows user for private credential storage.');
   }
+  // writeJson calls this on a fresh, empty file. Windows creation defaults can include
+  // explicit SYSTEM/Administrators ACEs. /inheritance:r removes inherited ACEs only;
+  // /grant:r replaces only this user's grant, preserving those privileged entries.
+  // Keep them: local administrators can take ownership anyway (as in Windows OpenSSH's
+  // private-key policy). This does not sanitize arbitrary pre-existing explicit ACEs.
+  // https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/icacls
   await exec('icacls', [path, '/inheritance:r', '/grant:r', `*${sid}:(F)`], { windowsHide: true });
 }
 

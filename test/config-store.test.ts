@@ -15,6 +15,7 @@ import {
   validateProfileName,
 } from '../src/config/profiles';
 import { temporaryAuthHome } from './auth-support';
+import { expectPrivateWindowsDacl } from './windows-acl-support';
 
 let home: Awaited<ReturnType<typeof temporaryAuthHome>>;
 beforeEach(async () => {
@@ -36,7 +37,7 @@ const tokens = {
 
 describe('credential storage', () => {
   it.runIf(process.platform === 'win32')(
-    'restricts the Windows credential ACL to the current SID',
+    'restricts the Windows credential ACL to the current user and system administrators',
     async () => {
       const store = new CredentialStore();
       await store.write('default', tokens);
@@ -49,17 +50,14 @@ describe('credential storage', () => {
 
       const credentialPath = getPaths().credentialsFile;
       const aclPath = join(home.directory, 'credentials.acl');
-      // /save exports SDDL with numeric SIDs and the actual inheritance-protection flag.
+      // /save exports SDDL with numeric SIDs or well-known aliases (e.g. LA for RID 500),
+      // plus the actual inheritance-protection flag.
       // The display output resolves account names and cannot prove inheritance is disabled.
       await exec('icacls', [credentialPath, '/save', aclPath], { windowsHide: true });
       const lines = (await readFile(aclPath, 'utf16le')).trim().split(/\r?\n/);
       expect(lines).toHaveLength(2);
       expect(lines[0]).toBe(basename(credentialPath));
-      const dacl = lines[1].match(/^D:((?:P|AI|AR)*)(\(.*\))$/);
-      expect(dacl).not.toBeNull();
-      expect(dacl![1]).toContain('P');
-      // Exactly one allow ACE, no inheritance flags, full control, and the current SID.
-      expect(dacl![2]).toBe(`(A;;FA;;;${sid})`);
+      expectPrivateWindowsDacl(lines[1], sid!);
       expect(await store.read('default')).toEqual(tokens);
     },
   );
