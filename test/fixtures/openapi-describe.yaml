@@ -1,0 +1,71 @@
+openapi: 3.0.3
+info:
+  title: Describe regression fixture
+  version: '1'
+paths:
+  /trooly/v1/studies/{id}/draft/edits:
+    post:
+      operationId: studyEditDraft
+      summary: Edit a study draft
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StudyWriteReq'
+      responses:
+        '200':
+          description: Updated
+components:
+  schemas:
+    StudyWriteReq:
+      type: object
+      properties:
+        edits:
+          type: array
+          items:
+            $ref: '#/components/schemas/StudyWriteEdit'
+    StudyWriteEdit:
+      type: object
+      oneOf:
+        - properties:
+            type:
+              type: string
+              enum: [update_brief]
+      properties:
+        type:
+          type: string
+          enum: [update_brief]
+        update_brief:
+          allOf:
+            - $ref: '#/components/schemas/StudyWriteUpdateBrief'
+    StudyWriteUpdateBrief:
+      type: object
+      properties:
+        patch:
+          allOf:
+            - $ref: '#/components/schemas/StudyWriteResearchBrief'
+    StudyWriteResearchBrief:
+      type: object
+      properties:
+        study_goal:
+          allOf:
+            - $ref: '#/components/schemas/BriefText'
+        background:
+          type: string
+          example: Existing research
+        details:
+          $ref: '#/components/schemas/BriefDetails'
+    BriefText:
+      type: string
+      example: Understand study participants
+    BriefDetails:
+      type: object
+      properties:
+        hidden:
+          type: string
+    Recursive:
+      type: object
+      properties:
+        child:
+          allOf:
+            - $ref: '#/components/schemas/Recursive'

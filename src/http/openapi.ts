@@ -161,45 +161,76 @@ export function expandReferences(
   depth = 0,
   seen = new Set<string>(),
 ): unknown {
-  if (Array.isArray(value)) {
-    return value.map((item) => expandReferences(item, document, maxDepth, depth, seen));
-  }
-  const record = object(value);
-  if (!record) return value;
-  if (typeof record.$ref === 'string') {
-    const ref = record.$ref;
-    if (!ref.startsWith('#/')) return { $ref: ref };
-    const name = ref.split('/').at(-1)!;
-    if (seen.has(ref) || depth > maxDepth) return { $ref: ref, title: name };
-    let target: unknown = document;
-    for (const segment of ref.slice(2).split('/')) {
-      target = object(target)?.[segment.replace(/~1/g, '/').replace(/~0/g, '~')];
+  function expand(
+    value: unknown,
+    depth: number,
+    seen: Set<string>,
+    sourceRef?: string,
+    name?: string,
+  ): unknown {
+    if (Array.isArray(value)) {
+      return value.map((item) => expand(item, depth, seen, sourceRef, name));
     }
-    if (target === undefined) return { $ref: ref };
-    const nextSeen = new Set(seen).add(ref);
-    return expandReferences(
-      {
-        ...object(target),
-        ...Object.fromEntries(Object.entries(record).filter(([key]) => key !== '$ref')),
-      },
-      document,
-      maxDepth,
-      depth,
-      nextSeen,
+    const record = object(value);
+    if (!record) return value;
+    if (typeof record.$ref === 'string') {
+      const ref = record.$ref;
+      if (!ref.startsWith('#/')) return record;
+      const refName = ref.split('/').at(-1)!.replace(/~1/g, '/').replace(/~0/g, '~');
+      if (seen.has(ref)) return { $ref: ref, title: refName, 'x-circular-ref': true };
+      let target: unknown = document;
+      for (const segment of ref.slice(2).split('/')) {
+        target = object(target)?.[segment.replace(/~1/g, '/').replace(/~0/g, '~')];
+      }
+      if (target === undefined) return record;
+      return expand(
+        {
+          ...object(target),
+          ...Object.fromEntries(Object.entries(record).filter(([key]) => key !== '$ref')),
+        },
+        depth,
+        new Set(seen).add(ref),
+        ref,
+        refName,
+      );
+    }
+    // Root objects are depth 0. Only moving to an object's values adds a level;
+    // arrays, composition branches and reference resolution describe that same value.
+    const isObject =
+      record.type === 'object' ||
+      record.properties !== undefined ||
+      record.additionalProperties !== undefined;
+    if (isObject && depth > maxDepth) {
+      return {
+        ...(sourceRef ? { $ref: sourceRef } : { type: 'object' }),
+        title: record.title ?? name ?? 'object',
+        'x-depth-limit': true,
+      };
+    }
+    return Object.fromEntries(
+      Object.entries(record).map(([key, child]) => {
+        // These are user data, not schemas (even if they contain "$ref" or "items").
+        if (['example', 'examples', 'default', 'enum', 'const'].includes(key)) return [key, child];
+        if (key === 'properties' && object(child)) {
+          return [
+            key,
+            Object.fromEntries(
+              Object.entries(child as ObjectValue).map(([field, schema]) => [
+                field,
+                expand(schema, depth + 1, seen, undefined, field),
+              ]),
+            ),
+          ];
+        }
+        if (key === 'additionalProperties') return [key, expand(child, depth + 1, seen)];
+        if (['allOf', 'oneOf', 'anyOf'].includes(key)) {
+          return [key, expand(child, depth, seen, sourceRef, name)];
+        }
+        return [key, expand(child, depth, seen)];
+      }),
     );
   }
-  return Object.fromEntries(
-    Object.entries(record).map(([key, child]) => [
-      key,
-      expandReferences(
-        child,
-        document,
-        maxDepth,
-        depth + (key === 'properties' || key === 'items' ? 1 : 0),
-        seen,
-      ),
-    ]),
-  );
+  return expand(value, depth, seen);
 }
 function example(schemaValue: unknown): unknown {
   const schema = object(schemaValue);
@@ -207,23 +238,32 @@ function example(schemaValue: unknown): unknown {
   if (schema.example !== undefined) return schema.example;
   if (schema.default !== undefined) return schema.default;
   if (Array.isArray(schema.enum)) return schema.enum[0];
-  if (schema.$ref) return `<${schema.title ?? String(schema.$ref).split('/').at(-1)}>`;
-  if (schema.allOf && Array.isArray(schema.allOf)) {
-    return Object.assign({}, ...schema.allOf.map(example));
+  if (schema.$ref || schema['x-depth-limit']) {
+    return `<${schema.title ?? String(schema.$ref).split('/').at(-1)}>`;
   }
-  if (Array.isArray(schema.oneOf) || Array.isArray(schema.anyOf)) {
-    return example(((schema.oneOf ?? schema.anyOf) as unknown[])[0]);
-  }
-  if (schema.type === 'array') return [example(schema.items)];
-  if (schema.type === 'object' || schema.properties) {
-    return Object.fromEntries(
+  let value: unknown;
+  if (schema.type === 'array') value = [example(schema.items)];
+  else if (schema.type === 'object' || schema.properties) {
+    value = Object.fromEntries(
       Object.entries(object(schema.properties) ?? {}).map(([key, child]) => [key, example(child)]),
     );
+  } else if (schema.type === 'boolean') value = false;
+  else if (schema.type === 'integer' || schema.type === 'number') value = 0;
+  else if (schema.type === 'string') value = '<string>';
+  const combine = (part: unknown) => {
+    // Composition may wrap scalars or a folded reference, not just objects.
+    if (object(value) && object(part)) value = { ...object(value), ...object(part) };
+    else if (!object(value) || Object.keys(object(value)!).length === 0) value = part;
+  };
+  if (Array.isArray(schema.allOf)) {
+    for (const branch of schema.allOf) combine(example(branch));
   }
-  if (schema.type === 'boolean') return false;
-  if (schema.type === 'integer' || schema.type === 'number') return 0;
-  return '<string>';
+  if (Array.isArray(schema.oneOf) || Array.isArray(schema.anyOf)) {
+    combine(example(((schema.oneOf ?? schema.anyOf) as unknown[])[0]));
+  }
+  return value === undefined ? '<string>' : value;
 }
+
 export function describeOperation(
   op: Operation,
   document: OpenApiDocument,
