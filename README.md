@@ -38,6 +38,8 @@ Each failed step prints a command to retry manually, and setup continues with th
 
 ```sh
 trooly login
+trooly whoami --json
+# Equivalent to:
 trooly auth status --json
 ```
 
@@ -144,6 +146,8 @@ Start with:
 
 ```sh
 trooly guide
+trooly whoami --json
+# Equivalent to:
 trooly auth status --json
 ```
 

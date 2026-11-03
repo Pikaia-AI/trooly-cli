@@ -272,7 +272,11 @@ export class ApiClient {
       const status = response.status;
       const exit = httpExitCode(status);
       let message = payload.error?.message ?? `Request failed (HTTP ${status}).`;
-      message += errorHint(payload.error?.code, response);
+      const hint = errorHint(payload.error?.code, response);
+      if (hint) {
+        if (!/[.!?]$/.test(message)) message += '.';
+        message += hint;
+      }
       // Exact token strings are not retained in diagnostics; only platform errors are displayed.
       if (this.options.token) message = message.split(this.options.token).join('[REDACTED]');
       throw new CliError(

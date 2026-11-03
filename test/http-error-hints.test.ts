@@ -31,11 +31,16 @@ afterEach(async () => {
   await rm(dir, { recursive: true, force: true });
 });
 
-async function rejectedRequest(code?: string, status = 401, authenticate?: string) {
+async function rejectedRequest(
+  code?: string,
+  status = 401,
+  authenticate?: string,
+  message = 'Server rejected the request.',
+) {
   const fetcher = vi.fn<typeof fetch>().mockResolvedValue(
     new Response(
       JSON.stringify({
-        error: { code, message: 'Server rejected the request.', details: { reason: 'test' } },
+        error: { code, message, details: { reason: 'test' } },
         meta: { request_id: 'req_error_hint' },
       }),
       {
@@ -61,6 +66,36 @@ async function rejectedRequest(code?: string, status = 401, authenticate?: strin
 }
 
 describe.each([false, true])('server error hints (json=%s)', (asJson) => {
+  it.each(['', '.', '!', '?'])('separates hints after ending %j', async (ending) => {
+    const error = await rejectedRequest(
+      'CREDENTIAL_NOT_ACCEPTED',
+      401,
+      undefined,
+      `Unsupported credential${ending}`,
+    );
+    const message = `Unsupported credential${ending || '.'} OAuth and API Key credentials cannot access management endpoints. Use the Trooly web app.`;
+    expect(error.message).toBe(message);
+    expect(emitError(error, asJson)).toBe(3);
+    if (asJson) {
+      expect(JSON.parse(stderr.join('')).error.message).toBe(message);
+    } else {
+      expect(stderr.join('')).toBe(
+        `Error: ${message} (CREDENTIAL_NOT_ACCEPTED, request_id=req_error_hint)\n`,
+      );
+    }
+  });
+  it('preserves unpunctuated server messages when no hint is appended', async () => {
+    const error = await rejectedRequest('UNKNOWN_ERROR', 401, undefined, 'Server guidance');
+    expect(error.message).toBe('Server guidance');
+    expect(emitError(error, asJson)).toBe(3);
+    if (asJson) {
+      expect(JSON.parse(stderr.join('')).error.message).toBe('Server guidance');
+    } else {
+      expect(stderr.join('')).toBe(
+        'Error: Server guidance (UNKNOWN_ERROR, request_id=req_error_hint)\n',
+      );
+    }
+  });
   it.each([
     [
       'CREDENTIAL_NOT_ACCEPTED',
