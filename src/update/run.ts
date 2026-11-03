@@ -34,7 +34,11 @@ export function executable(
     yarn: ['node_modules/yarn/bin/yarn.js'],
     trooly: ['node_modules/trooly/dist/index.js'],
   };
-  for (const directory of (env.PATH ?? '').split(';')) {
+  // Windows environment keys are case-insensitive, including in copied env objects.
+  const pathKey = Object.keys(env)
+    .sort()
+    .find((key) => key.toLowerCase() === 'path');
+  for (const directory of (pathKey ? (env[pathKey] ?? '') : '').split(';')) {
     if (!directory) continue;
     const exe = join(directory, `${command}.exe`);
     if (existsSync(exe)) return { command: exe, args };

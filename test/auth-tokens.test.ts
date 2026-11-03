@@ -54,6 +54,8 @@ describe('token refresh', () => {
     expect((await credentialStore.read('default'))?.refresh_token).toBe('fake-refresh-new');
   });
   it('does not refresh an unexpired token', async () => {
+    // Keep the 60-second boundary independent of filesystem/Windows ACL latency.
+    vi.spyOn(Date, 'now').mockReturnValue(Date.now());
     const profile = await save('http://127.0.0.1:1', Date.now() + 61000);
     expect(await ensureAccessToken(profile)).toBe('fake-access-old');
   });

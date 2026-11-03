@@ -99,7 +99,7 @@ export function startUpdateCheck(
     now?: () => number;
     write?: (text: string) => void;
   } = {},
-): { finish(): Promise<void> } {
+): { settled: Promise<void>; finish(): Promise<void> } {
   const env = options.env ?? process.env;
   if (
     !shouldCheckUpdate(
@@ -108,7 +108,7 @@ export function startUpdateCheck(
       options.isUpdate ?? false,
     )
   ) {
-    return { finish: async () => {} };
+    return { settled: Promise.resolve(), finish: async () => {} };
   }
   const now = options.now ?? Date.now;
   const write = options.write ?? ((text) => process.stderr.write(text));
@@ -141,6 +141,9 @@ export function startUpdateCheck(
     .catch(() => {})
     .finally(() => clearTimeout(timer));
   return {
+    // Callers that need completed background work can synchronize without a timer.
+    // Normal command exit still calls finish() directly and never waits for a query.
+    settled: work,
     async finish() {
       finished = true;
       controller.abort();

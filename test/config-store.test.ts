@@ -1,5 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFile, stat } from 'node:fs/promises';
+import { execFile } from 'node:child_process';
+import { promisify } from 'node:util';
 import { CredentialStore } from '../src/auth/store';
 import { getPaths } from '../src/config/paths';
 import {
@@ -32,6 +34,39 @@ const tokens = {
 };
 
 describe('credential storage', () => {
+  it.runIf(process.platform === 'win32')(
+    'restricts the Windows credential ACL to the current SID',
+    async () => {
+      const store = new CredentialStore();
+      await store.write('default', tokens);
+      const { stdout } = await promisify(execFile)(
+        'powershell.exe',
+        [
+          '-NoProfile',
+          '-NonInteractive',
+          '-Command',
+          `
+          $ErrorActionPreference = 'Stop'
+          $acl = Get-Acl -LiteralPath $env:TROOLY_TEST_CREDENTIAL_PATH
+          $rules = @($acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]) | ForEach-Object {
+            @{ sid = $_.IdentityReference.Value; rights = $_.FileSystemRights.ToString(); type = $_.AccessControlType.ToString(); inherited = $_.IsInherited }
+          })
+          @{ protected = $acl.AreAccessRulesProtected; sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value; rules = $rules } | ConvertTo-Json -Depth 4 -Compress
+        `,
+        ],
+        {
+          windowsHide: true,
+          env: { ...process.env, TROOLY_TEST_CREDENTIAL_PATH: getPaths().credentialsFile },
+        },
+      );
+      const acl = JSON.parse(stdout);
+      expect(acl.protected).toBe(true);
+      expect(acl.rules).toEqual([
+        { sid: acl.sid, rights: 'FullControl', type: 'Allow', inherited: false },
+      ]);
+      expect(await store.read('default')).toEqual(tokens);
+    },
+  );
   it('forces file storage without loading native modules and restricts permissions', async () => {
     const loader = vi.fn().mockRejectedValue(new Error('Must not load'));
     const store = new CredentialStore(loader);

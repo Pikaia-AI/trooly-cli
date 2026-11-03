@@ -120,13 +120,15 @@ describe('installation recognition', () => {
     await mkdir(join(root, '.bun/install/global/node_modules/trooly/dist'), { recursive: true });
     await writeFile(path, '');
     const link = join(root, 'trooly');
-    try {
+    let entry = link;
+    if (process.platform === 'win32') {
+      // Junctions exercise realpath without requiring file-symlink privileges.
+      await symlink(join(root, '.bun/install/global/node_modules/trooly'), link, 'junction');
+      entry = join(link, 'dist/index.js');
+    } else {
       await symlink(path, link);
-    } catch (error) {
-      if (process.platform === 'win32') return;
-      throw error;
     }
-    expect(detectInstallation(link)).toBe('bun');
+    expect(detectInstallation(entry)).toBe('bun');
   });
 });
 
@@ -160,7 +162,7 @@ describe('registry checks', () => {
   it('reads environment, npmrc, then public default in precedence order', async () => {
     const home = await directory();
     expect(await registryAddress({}, home)).toBe('https://registry.npmjs.org');
-    await writeFile(join(home, '.npmrc'), '# comment\nregistry=http://127.0.0.1:3001/\n');
+    await writeFile(join(home, '.npmrc'), '# comment\r\nregistry=http://127.0.0.1:3001/\r\n');
     expect(await registryAddress({}, home)).toBe('http://127.0.0.1:3001');
     expect(await registryAddress({ npm_config_registry: 'http://127.0.0.1:3002/' }, home)).toBe(
       'http://127.0.0.1:3002',
@@ -189,7 +191,6 @@ describe('registry checks', () => {
     vi.stubEnv('XDG_CACHE_HOME', root);
     vi.stubEnv('LOCALAPPDATA', root);
     const local = await registry();
-    const cache = join(getPaths().cacheDir, 'update-check.json');
     const lines: string[] = [];
     const env = { npm_config_registry: local.url };
     let now = Date.now();
@@ -199,13 +200,7 @@ describe('registry checks', () => {
       now: () => now,
       write: (text) => lines.push(text),
     });
-    await waitFor(async () => {
-      try {
-        return (JSON.parse(await readFile(cache, 'utf8')) as { latest: string }).latest === '1.2.3';
-      } catch {
-        return false;
-      }
-    });
+    await first.settled;
     await first.finish();
     expect(lines).toHaveLength(1);
     const second = startUpdateCheck({
@@ -214,7 +209,7 @@ describe('registry checks', () => {
       now: () => now,
       write: (text) => lines.push(text),
     });
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await second.settled;
     await second.finish();
     expect(local.count()).toBe(1);
     expect(lines).toHaveLength(1);
@@ -225,10 +220,8 @@ describe('registry checks', () => {
       now: () => now,
       write: (text) => lines.push(text),
     });
-    await waitFor(
-      async () =>
-        local.count() === 2 && JSON.parse(await readFile(cache, 'utf8')).checkedAt === now,
-    );
+    await third.settled;
+    expect(local.count()).toBe(2);
     await third.finish();
     expect(lines).toHaveLength(2);
   });
@@ -253,7 +246,7 @@ describe('registry checks', () => {
         stderrTTY: true,
         write: text => process.stdout.write(text),
       });
-      await new Promise(resolve => setTimeout(resolve, 400));
+      await check.settled;
       await check.finish();
     `;
     const child = () =>
@@ -304,9 +297,9 @@ describe('registry checks', () => {
       },
     };
     const first = startUpdateCheck(options);
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await first.settled;
     const second = startUpdateCheck(options);
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await second.settled;
     await Promise.all([first.finish(), second.finish()]);
     expect(notices).toHaveLength(1);
     expect(JSON.parse(await readFile(cache, 'utf8')).notifiedVersion).toBe('1.2.3');
@@ -318,7 +311,7 @@ describe('registry checks', () => {
     const local = await registry();
     await mkdir(join(getPaths().cacheDir, 'update-check.json.lock'), { recursive: true });
     const check = startUpdateCheck({ env: { npm_config_registry: local.url }, stderrTTY: true });
-    await new Promise((resolve) => setTimeout(resolve, 30));
+    await check.settled;
     const started = Date.now();
     await check.finish();
     expect(Date.now() - started).toBeLessThan(250);
@@ -483,16 +476,21 @@ describe('explicit installation', () => {
     );
     expect(output).toHaveBeenCalledWith('Updated to 1.2.3.\n');
   });
-  it('resolves a Windows JS package manager without a command shell', async () => {
-    const path = await directory();
-    const script = join(path, 'node_modules/npm/bin/npm-cli.js');
-    await mkdir(join(path, 'node_modules/npm/bin'), { recursive: true });
-    await writeFile(script, '');
-    expect(executable('npm', ['install', '-g', 'trooly@1.2.3'], 'win32', { PATH: path })).toEqual({
-      command: process.execPath,
-      args: [script, 'install', '-g', 'trooly@1.2.3'],
-    });
-  });
+  it.each(['PATH', 'Path', 'path'])(
+    'resolves a Windows JS package manager via %s without a command shell',
+    async (key) => {
+      const path = join(await directory(), 'bin with spaces');
+      const script = join(path, 'node_modules/npm/bin/npm-cli.js');
+      await mkdir(join(path, 'node_modules/npm/bin'), { recursive: true });
+      await writeFile(script, '');
+      expect(
+        executable('npm', ['install', '-g', 'trooly@1.2.3'], 'win32', { [key]: path }),
+      ).toEqual({
+        command: process.execPath,
+        args: [script, 'install', '-g', 'trooly@1.2.3'],
+      });
+    },
+  );
   it('resolves a pnpm Windows trooly shim through its quoted relative script', async () => {
     const bin = await directory();
     const parent = join(bin, '.pnpm/trooly@1.2.3/node_modules/trooly/dist');
