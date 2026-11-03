@@ -12,8 +12,10 @@ export function chooseLoginMethod(
   device = false,
   env = process.env,
   platform: NodeJS.Platform = process.platform,
+  interactive = Boolean(process.stdin.isTTY && process.stdout.isTTY),
 ): 'device' | 'loopback' {
   return device ||
+    !interactive ||
     'SSH_CONNECTION' in env ||
     'SSH_TTY' in env ||
     (platform === 'linux' && !env.DISPLAY && !env.WAYLAND_DISPLAY)
