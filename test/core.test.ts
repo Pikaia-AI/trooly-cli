@@ -243,7 +243,7 @@ describe('request boundary', () => {
     expect(output).toHaveLength(0);
     expect(JSON.parse(errors.join('')).meta.request_id).toBe('req_sample');
     expect(seen).toHaveLength(1);
-    if (status === 403) expect(errors.join('')).toContain('trooly login --scope write');
+    if (status === 403) expect(errors.join('')).toContain('trooly auth status');
     if (status === 426) expect(errors.join('')).toContain('trooly update');
   });
   it.each(['//attacker.invalid/', 'https://attacker.invalid/', '/a/../b', '/bad%ZZ'])(
