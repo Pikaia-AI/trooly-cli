@@ -1,0 +1,39 @@
+name: OpenAPI sync
+on:
+  schedule:
+    - cron: '23 6 * * *'
+  workflow_dispatch:
+permissions:
+  contents: write
+  pull-requests: write
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+      - run: npm ci
+      - run: npm run sync-openapi
+      - name: Reject private content before creating a public branch
+        run: npx tsx scripts/check-public.ts
+      - name: Check compatibility
+        id: types
+        continue-on-error: true
+        run: npx tsc --noEmit
+      - name: Propose contract update
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: automation/openapi-sync
+          commit-message: 'chore: synchronize public OpenAPI types'
+          title: 'chore: synchronize public OpenAPI types'
+          body: |
+            Regenerated from the public gateway contract.
+            Compatibility check: ${{ steps.types.outcome }}.
+            Review changes before merging; a failed check may indicate an incompatible API change.
+          add-paths: src/generated/api.d.ts
+      - name: Fail on incompatible contract
+        if: steps.types.outcome == 'failure'
+        run: exit 1

@@ -1,0 +1,53 @@
+{
+  "name": "trooly",
+  "version": "0.1.0",
+  "description": "The Trooly API command-line interface",
+  "type": "module",
+  "bin": {
+    "trooly": "./dist/index.js"
+  },
+  "files": [
+    "dist"
+  ],
+  "license": "Apache-2.0",
+  "engines": {
+    "node": ">=22"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Pikaia-AI/trooly-cli.git"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "scripts": {
+    "build": "tsup && tsx scripts/licenses.ts",
+    "format": "prettier --write src scripts test package.json .prettierrc.json .github/workflows",
+    "format:check": "prettier --check src scripts test package.json .prettierrc.json .github/workflows",
+    "lint": "npm run format:check && tsc --noEmit && tsx scripts/check-public.ts",
+    "test": "vitest run",
+    "sync-openapi": "tsx scripts/sync-openapi.ts"
+  },
+  "dependencies": {
+    "commander": "^14.0.0",
+    "openapi-fetch": "^0.15.0",
+    "proper-lockfile": "^4.1.2",
+    "yaml": "^2.8.0"
+  },
+  "overrides": {
+    "esbuild": "^0.28.2"
+  },
+  "optionalDependencies": {
+    "@napi-rs/keyring": "^1.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/proper-lockfile": "^4.1.4",
+    "openapi-typescript": "^7.10.0",
+    "prettier": "3.6.2",
+    "tsup": "^8.5.0",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "vitest": "^5.1.0"
+  }
+}
