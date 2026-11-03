@@ -4,7 +4,7 @@
   "description": "The Trooly API command-line interface",
   "type": "module",
   "bin": {
-    "trooly": "./dist/index.js"
+    "trooly": "dist/index.js"
   },
   "files": [
     "dist",
