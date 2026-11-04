@@ -254,7 +254,13 @@ describe('explicit downgrade confirmation', () => {
       { version: '0.1.0-beta.0', method: 'npm', yes: true, json: true },
       { runner, write },
     );
-    expect(runner).toHaveBeenCalledTimes(2);
+    // Install, verify, then reinstall the matching assistant skill.
+    expect(runner).toHaveBeenCalledTimes(3);
+    expect(runner.mock.calls[2]).toEqual([
+      'trooly',
+      ['setup', '--yes', '--skip-login'],
+      { stdoutToStderr: true },
+    ]);
     expect(write).toHaveBeenCalledTimes(1);
     expect(JSON.parse(write.mock.calls[0][0])).toMatchObject({
       current: release.current,
@@ -278,7 +284,12 @@ describe('explicit downgrade confirmation', () => {
       const result = runUpdate({ version: '0.1.0-beta.0', method: 'npm' }, { runner, write });
       if (answer === 'yes') {
         await result;
-        expect(runner).toHaveBeenCalledTimes(2);
+        expect(runner).toHaveBeenCalledTimes(3);
+        expect(runner.mock.calls[2]).toEqual([
+          'trooly',
+          ['setup', '--yes', '--skip-login'],
+          { stdoutToStderr: true },
+        ]);
       } else {
         await expect(result).rejects.toThrow('Action cancelled');
         expect(runner).not.toHaveBeenCalled();
