@@ -4,8 +4,9 @@ import { join, resolve } from 'node:path';
 import { CliError } from '../http/errors';
 import { CLI_VERSION } from '../version';
 import { detectInstallation, installationCommand, type InstallMethod } from './install-info';
-import { fetchTargetVersion } from './check';
-import { requireVersion } from './semver';
+import { fetchTargetVersion, requireChannel } from './check';
+import { confirmAction } from '../commands/shared';
+import { compareVersions, requireVersion } from './semver';
 
 export interface RunResult {
   code: number;
@@ -112,7 +113,14 @@ export function installFailure(output: string, manual: string): CliError {
   );
 }
 export async function runUpdate(
-  options: { version?: string; method?: string; check?: boolean; json?: boolean },
+  options: {
+    version?: string;
+    channel?: string;
+    method?: string;
+    check?: boolean;
+    json?: boolean;
+    yes?: boolean;
+  },
   dependencies: {
     runner?: Runner;
     targetVersion?: typeof fetchTargetVersion;
@@ -121,13 +129,17 @@ export async function runUpdate(
     write?: (text: string) => void;
   } = {},
 ): Promise<void> {
-  if (options.version) requireVersion(options.version);
+  if (options.version !== undefined) requireVersion(options.version);
+  const channel = options.channel === undefined ? undefined : requireChannel(options.channel);
+  if (options.version !== undefined && channel !== undefined) {
+    throw new CliError('Use either --version or --channel, not both.', 2, 'USAGE_ERROR');
+  }
   if (options.method && !['npm', 'pnpm', 'yarn', 'bun', 'volta'].includes(options.method)) {
     throw new CliError('Method must be npm, pnpm, yarn, bun, or volta.', 2, 'INVALID_METHOD');
   }
   const write = dependencies.write ?? ((text) => process.stdout.write(text));
   const target = requireVersion(
-    await (dependencies.targetVersion ?? fetchTargetVersion)(options.version),
+    await (dependencies.targetVersion ?? fetchTargetVersion)(options.version, { channel }),
   );
   const report = (message: string, installed = false) =>
     write(
@@ -135,16 +147,18 @@ export async function runUpdate(
         ? `${JSON.stringify({ current: CLI_VERSION, target, installed, message })}\n`
         : `${message}\n`,
     );
-  if (options.check) {
-    report(
-      target === CLI_VERSION
-        ? `Already at ${target}.`
-        : `Available: ${target} (current ${CLI_VERSION}).`,
-    );
+  const comparison = compareVersions(target, CLI_VERSION);
+  const downgrade = comparison < 0 && options.version !== undefined;
+  if (comparison === 0 || (comparison < 0 && !downgrade)) {
+    report(`Already up to date (current ${CLI_VERSION}; target ${target}).`);
     return;
   }
-  if (target === CLI_VERSION) {
-    report(`Already at ${target}.`);
+  if (options.check) {
+    report(
+      downgrade
+        ? `Downgrade: ${CLI_VERSION} -> ${target}. Installation requires confirmation (or --yes).`
+        : `Available: ${target} (current ${CLI_VERSION}).`,
+    );
     return;
   }
   const method =
@@ -152,16 +166,22 @@ export async function runUpdate(
     (dependencies.installation ?? detectInstallation)(dependencies.entry);
   if (method === 'npx' || method === 'pnpm-dlx') {
     report(
-      'This is a temporary run. Start a fresh run with trooly@latest; no global update is needed.',
+      `This is a temporary run. Start a fresh run with trooly@${target}; no global update is needed.`,
     );
     return;
   }
   if (method === 'project') {
-    report('Trooly is a project dependency. Update its version in the project package.json.');
+    report(
+      `Trooly is a project dependency. Update its version to ${target} in the project package.json.`,
+    );
     return;
   }
   const command = installationCommand(method, target);
   const manual = [command.command, ...command.args].join(' ');
+  if (downgrade) {
+    process.stderr.write(`Warning: downgrading Trooly CLI from ${CLI_VERSION} to ${target}.\n`);
+    await confirmAction(Boolean(options.yes));
+  }
   const runner = dependencies.runner ?? runProcess;
   let result: RunResult;
   const outputOptions = { stdoutToStderr: Boolean(options.json) };

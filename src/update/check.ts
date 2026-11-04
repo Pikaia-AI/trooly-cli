@@ -10,6 +10,7 @@ import { compareVersions, requireVersion, validVersion } from './semver';
 
 export const UPDATE_TTL = 24 * 60 * 60 * 1000;
 interface CheckCache {
+  current: string;
   checkedAt: number;
   latest: string;
   notifiedAt?: number;
@@ -34,9 +35,46 @@ export async function registryAddress(
   }
   return url.href.replace(/\/$/, '');
 }
+export type UpdateChannel = 'latest' | 'next';
+export function requireChannel(channel: string): UpdateChannel {
+  if (channel !== 'latest' && channel !== 'next') {
+    throw new CliError('Channel must be latest or next.', 2, 'INVALID_CHANNEL');
+  }
+  return channel;
+}
+// Both explicit updates and daily checks resolve registry tags here. Build
+// metadata does not make a release a prerelease, even when it contains a hyphen.
+export function selectTargetVersion(
+  tags: { latest?: unknown; next?: unknown } | undefined,
+  current: string,
+  channel?: UpdateChannel,
+): string {
+  requireVersion(current);
+  const candidates = channel
+    ? [tags?.[channel]]
+    : current.split('+')[0].includes('-')
+      ? [tags?.latest, tags?.next]
+      : [tags?.latest];
+  const versions = candidates.filter(validVersion);
+  if (!versions.length) {
+    throw new CliError(
+      `npm registry did not return a valid release version${channel ? ` for channel ${channel}` : ''}.`,
+      1,
+      'REGISTRY_ERROR',
+    );
+  }
+  return versions.reduce((highest, version) =>
+    compareVersions(version, highest) > 0 ? version : highest,
+  );
+}
 export async function fetchTargetVersion(
   version?: string,
-  options: { signal?: AbortSignal; env?: NodeJS.ProcessEnv; home?: string } = {},
+  options: {
+    signal?: AbortSignal;
+    env?: NodeJS.ProcessEnv;
+    home?: string;
+    channel?: UpdateChannel;
+  } = {},
 ): Promise<string> {
   if (version) requireVersion(version);
   const registry = await registryAddress(options.env, options.home);
@@ -48,10 +86,10 @@ export async function fetchTargetVersion(
     throw new CliError(`npm registry returned HTTP ${response.status}.`, 1, 'REGISTRY_ERROR');
   }
   const body = (await response.json()) as {
-    'dist-tags'?: { latest?: string };
+    'dist-tags'?: { latest?: unknown; next?: unknown };
     versions?: Record<string, unknown>;
   };
-  const target = version ?? body['dist-tags']?.latest;
+  const target = version ?? selectTargetVersion(body['dist-tags'], CLI_VERSION, options.channel);
   if (!validVersion(target)) {
     throw new CliError('npm registry did not return a valid release version.', 1, 'REGISTRY_ERROR');
   }
@@ -70,7 +108,11 @@ export function shouldCheckUpdate(
 async function readCache(path: string): Promise<CheckCache | undefined> {
   try {
     const value = JSON.parse(await readFile(path, 'utf8')) as CheckCache;
-    return Number.isFinite(value.checkedAt) && validVersion(value.latest) ? value : undefined;
+    return value.current === CLI_VERSION &&
+      Number.isFinite(value.checkedAt) &&
+      validVersion(value.latest)
+      ? value
+      : undefined;
   } catch {
     return undefined;
   }
@@ -130,7 +172,7 @@ export function startUpdateCheck(
       else {
         const latest = await fetchTargetVersion(undefined, { env, signal: controller.signal });
         if (finished) return;
-        result = { ...old, checkedAt: now(), latest };
+        result = { ...old, current: CLI_VERSION, checkedAt: now(), latest };
         await saveCache(path, result);
       }
     } finally {
