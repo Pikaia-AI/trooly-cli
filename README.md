@@ -158,9 +158,15 @@ The guide prints the body of the bundled `skills/trooly/SKILL.md`, which is also
 ```sh
 trooly update --check
 trooly update
-trooly update --version 0.1.0
+trooly update --channel next
+trooly update --channel latest
+trooly update --version 0.1.0 --yes
 trooly update --method pnpm
 ```
+
+By default, prerelease installations choose the higher semantic version from the npm `next` and `latest` tags; stable installations consider only `latest`. Daily notifications and `trooly update` use the same rule. `--channel latest` or `--channel next` selects only that tag for the current invocation (for example, to move from a prerelease to a newly published stable release). It does not persist a channel preference: future checks follow the installed version. Tags are publisher-controlled; `latest` can still point to a prerelease.
+
+A target at or below the current version is reported as up to date and is never installed automatically, even with `--channel` or `--yes`. To install an older release, specify its exact version with `--version <version>`; the CLI warns before installation and asks for confirmation. Non-interactive terminals require `--yes`. `--version` and `--channel` cannot be combined. `--check` only reports the target (including an explicitly requested downgrade), without installing or prompting.
 
 Updates recognize npm, pnpm, yarn, bun, and Volta installations. Temporary npx/pnpm-dlx runs and project dependencies receive instructions instead of a global install. Global installation uses an exact version and verifies the new CLI version afterward. After a successful upgrade, the matching assistant skill is installed again; a skill installation failure is reported without failing the CLI upgrade. No update occurs automatically.
 

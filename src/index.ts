@@ -53,6 +53,30 @@ export function createProgram(): Command {
         process.stdout.write(CLI_VERSION + '\n');
       }
     });
+  // Stop root option parsing at the command so update's --version <version>
+  // is not consumed by the root version-display flag. Keep shared flags usable
+  // after commands by registering them on each top-level command as well.
+  program.enablePositionalOptions();
+  for (const command of program.commands) {
+    for (const option of program.options) {
+      if (
+        option.long !== '--version' &&
+        !command.options.some((local) => local.long === option.long)
+      ) {
+        command.addOption(option);
+        // Preserve last-occurrence precedence when a shared option appears
+        // both before and after the command (optsWithGlobals favors parents).
+        command.on(`option:${option.name()}`, () => {
+          program.setOptionValueWithSource(
+            option.attributeName(),
+            command.getOptionValue(option.attributeName()),
+            'cli',
+          );
+        });
+      }
+    }
+    command.version(CLI_VERSION, command.name() === 'update' ? '-v' : '-v, --version');
+  }
   return program;
 }
 export async function main(argv = process.argv): Promise<number> {

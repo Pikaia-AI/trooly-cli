@@ -18,6 +18,7 @@ import {
 } from '../src/update/check';
 import { runUpdate, installFailure, executable, runProcess } from '../src/update/run';
 import { getPaths } from '../src/config/paths';
+import { CLI_VERSION } from '../src/version';
 import { spawn } from 'node:child_process';
 
 const directories: string[] = [];
@@ -287,7 +288,10 @@ describe('registry checks', () => {
     vi.stubEnv('LOCALAPPDATA', root);
     const cache = join(getPaths().cacheDir, 'update-check.json');
     await mkdir(getPaths().cacheDir, { recursive: true });
-    await writeFile(cache, JSON.stringify({ checkedAt: Date.now(), latest: '1.2.3' }));
+    await writeFile(
+      cache,
+      JSON.stringify({ current: CLI_VERSION, checkedAt: Date.now(), latest: '1.2.3' }),
+    );
     const notices: string[] = [];
     const options = {
       env: {},
