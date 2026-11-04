@@ -41,64 +41,71 @@ export async function logout(profile: ResolvedProfile, remove = false): Promise<
   });
 }
 
+export interface LoginOptions {
+  profile?: string;
+  scope?: string;
+  device?: boolean;
+}
+
+export async function login(options: LoginOptions = {}): Promise<Credential> {
+  const profile = await resolveProfile(options.profile);
+  assertProfileGateway(profile);
+  const metadata = await discoverOAuth(profile.apiBase, { refresh: true });
+  const controller = new AbortController();
+  const cancel = () => controller.abort();
+  process.once('SIGINT', cancel);
+  try {
+    const flowOptions = { scope: options.scope ?? 'read write', signal: controller.signal };
+    const tokens =
+      chooseLoginMethod(options.device) === 'device'
+        ? await deviceLogin(profile.apiBase, metadata, flowOptions)
+        : await loopbackLogin(profile.apiBase, metadata, flowOptions);
+    const client = new ApiClient({
+      apiBase: profile.apiBase,
+      profileName: profile.name,
+      token: tokens.access_token,
+    });
+    const result = await client.request('GET', '/platform/v2/credential');
+    const identity = result.data as Credential;
+    if (
+      !identity?.credential?.environment ||
+      !identity.organization?.id ||
+      !identity.principal?.id
+    ) {
+      throw new CliError('Invalid credential identity response.', 1, 'INVALID_CREDENTIAL_RESPONSE');
+    }
+    await withProfileLock(profile.name, async () => {
+      const current = await resolveLockedProfile(profile, false);
+      // An interrupted/removed profile must not attach orphaned old tokens to
+      // newly written gateway metadata if persisting the new tokens fails.
+      if (!current.stored) await credentialStore.remove(profile.name);
+      await saveProfile(profile.name, {
+        api_base: profile.apiBase,
+        auth: 'oauth',
+        organization: identity.organization,
+        environment: identity.credential.environment,
+        principal: identity.principal,
+        logged_in_at: new Date().toISOString(),
+      });
+      await credentialStore.write(profile.name, tokens);
+    });
+    return identity;
+  } catch (error) {
+    if (controller.signal.aborted) throw new CliError('Login cancelled.', 3, 'LOGIN_CANCELLED');
+    throw error;
+  } finally {
+    process.removeListener('SIGINT', cancel);
+  }
+}
+
 function loginCommand(command: Command): void {
   command
     .option('--device', 'Use a device code')
     .option('--scope <scope>', 'Requested OAuth scopes', 'read write')
     .action(async (_options, cmd: Command) => {
       const opts = cmd.optsWithGlobals();
-      const profile = await resolveProfile(opts.profile);
-      assertProfileGateway(profile);
-      const metadata = await discoverOAuth(profile.apiBase);
-      const controller = new AbortController();
-      const cancel = () => controller.abort();
-      process.once('SIGINT', cancel);
-      try {
-        const options = { scope: opts.scope as string, signal: controller.signal };
-        const tokens =
-          chooseLoginMethod(opts.device) === 'device'
-            ? await deviceLogin(profile.apiBase, metadata, options)
-            : await loopbackLogin(profile.apiBase, metadata, options);
-        const client = new ApiClient({
-          apiBase: profile.apiBase,
-          profileName: profile.name,
-          token: tokens.access_token,
-        });
-        const result = await client.request('GET', '/platform/v2/credential');
-        const identity = result.data as Credential;
-        if (
-          !identity?.credential?.environment ||
-          !identity.organization?.id ||
-          !identity.principal?.id
-        ) {
-          throw new CliError(
-            'Invalid credential identity response.',
-            1,
-            'INVALID_CREDENTIAL_RESPONSE',
-          );
-        }
-        await withProfileLock(profile.name, async () => {
-          const current = await resolveLockedProfile(profile, false);
-          // An interrupted/removed profile must not attach orphaned old tokens to
-          // newly written gateway metadata if persisting the new tokens fails.
-          if (!current.stored) await credentialStore.remove(profile.name);
-          await saveProfile(profile.name, {
-            api_base: profile.apiBase,
-            auth: 'oauth',
-            organization: identity.organization,
-            environment: identity.credential.environment,
-            principal: identity.principal,
-            logged_in_at: new Date().toISOString(),
-          });
-          await credentialStore.write(profile.name, tokens);
-        });
-        emit(identity, Boolean(opts.json));
-      } catch (error) {
-        if (controller.signal.aborted) throw new CliError('Login cancelled.', 3, 'LOGIN_CANCELLED');
-        throw error;
-      } finally {
-        process.removeListener('SIGINT', cancel);
-      }
+      const identity = await login(opts);
+      emit(identity, Boolean(opts.json));
     });
 }
 function logoutCommand(command: Command): void {

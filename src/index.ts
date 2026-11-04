@@ -9,6 +9,7 @@ import { registerDocs } from './commands/docs';
 import { registerBusiness } from './commands/business';
 import { registerGuide } from './commands/guide';
 import { registerUpdate } from './commands/update';
+import { registerSetup } from './commands/setup';
 import { startUpdateCheck } from './update/check';
 import { emit, emitError } from './output/render';
 import { CliError } from './http/errors';
@@ -31,6 +32,7 @@ export function createProgram(): Command {
   registerBusiness(program);
   registerGuide(program);
   registerUpdate(program);
+  registerSetup(program);
   program
     .command('version')
     .description('Print the installed version')
