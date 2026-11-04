@@ -24,7 +24,18 @@ export function createProgram(): Command {
     .option('--yes', 'Confirm a destructive action')
     .addHelpText('after', HELP_FOOTER)
     .exitOverride();
-  program.configureOutput({ writeErr: () => {}, outputError: () => {} });
+  // Commander sends implicit group help to writeErr; keep it visible on stdout.
+  // Only suppress its error lines, which main renders in our standard format.
+  program.configureOutput({
+    writeErr: (text) => process.stdout.write(text),
+    outputError: () => {},
+  });
+  program.on('beforeAllHelp', ({ command, error }: { command: Command; error: boolean }) => {
+    // Unknown help targets also raise commander.help, but remain usage errors.
+    if (error && command.args[0] === 'help' && command.args[1]) {
+      throw new CliError(`unknown command '${command.args[1]}'`, 2, 'USAGE_ERROR');
+    }
+  });
   registerAuth(program);
   registerProfile(program);
   registerApi(program);
@@ -42,6 +53,30 @@ export function createProgram(): Command {
         process.stdout.write(CLI_VERSION + '\n');
       }
     });
+  // Stop root option parsing at the command so update's --version <version>
+  // is not consumed by the root version-display flag. Keep shared flags usable
+  // after commands by registering them on each top-level command as well.
+  program.enablePositionalOptions();
+  for (const command of program.commands) {
+    for (const option of program.options) {
+      if (
+        option.long !== '--version' &&
+        !command.options.some((local) => local.long === option.long)
+      ) {
+        command.addOption(option);
+        // Preserve last-occurrence precedence when a shared option appears
+        // both before and after the command (optsWithGlobals favors parents).
+        command.on(`option:${option.name()}`, () => {
+          program.setOptionValueWithSource(
+            option.attributeName(),
+            command.getOptionValue(option.attributeName()),
+            'cli',
+          );
+        });
+      }
+    }
+    command.version(CLI_VERSION, command.name() === 'update' ? '-v' : '-v, --version');
+  }
   return program;
 }
 export async function main(argv = process.argv): Promise<number> {
@@ -51,7 +86,12 @@ export async function main(argv = process.argv): Promise<number> {
     await program.parseAsync(argv);
     return 0;
   } catch (error) {
-    if (error instanceof CommanderError && error.exitCode === 0) return 0;
+    if (
+      error instanceof CommanderError &&
+      (error.exitCode === 0 || error.code === 'commander.help')
+    ) {
+      return 0;
+    }
     const normalized =
       error instanceof CommanderError
         ? new CliError(error.message.replace(/^error: /, ''), 2, 'USAGE_ERROR')
