@@ -44,7 +44,7 @@ export function emitError(error: unknown, asJson = false): number {
   process.stderr.write(
     asJson
       ? JSON.stringify(redact(envelope)) + '\n'
-      : `错误：${redact(e.message)}（${redact(e.code)}，request_id=${redact(e.requestId ?? '-')}）\n`,
+      : `Error: ${redact(e.message)} (${redact(e.code)}, request_id=${redact(e.requestId ?? '-')})\n`,
   );
   return e.exitCode;
 }

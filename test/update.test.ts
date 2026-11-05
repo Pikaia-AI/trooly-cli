@@ -18,6 +18,7 @@ import {
 } from '../src/update/check';
 import { runUpdate, installFailure, executable, runProcess } from '../src/update/run';
 import { getPaths } from '../src/config/paths';
+import { CLI_VERSION } from '../src/version';
 import { spawn } from 'node:child_process';
 
 const directories: string[] = [];
@@ -287,7 +288,10 @@ describe('registry checks', () => {
     vi.stubEnv('LOCALAPPDATA', root);
     const cache = join(getPaths().cacheDir, 'update-check.json');
     await mkdir(getPaths().cacheDir, { recursive: true });
-    await writeFile(cache, JSON.stringify({ checkedAt: Date.now(), latest: '1.2.3' }));
+    await writeFile(
+      cache,
+      JSON.stringify({ current: CLI_VERSION, checkedAt: Date.now(), latest: '1.2.3' }),
+    );
     const notices: string[] = [];
     const options = {
       env: {},
@@ -332,7 +336,8 @@ describe('explicit installation', () => {
       const runner = vi
         .fn()
         .mockResolvedValueOnce({ code: 0, output: 'done' })
-        .mockResolvedValueOnce({ code: 0, output: '1.2.3\n' });
+        .mockResolvedValueOnce({ code: 0, output: '1.2.3\n' })
+        .mockResolvedValueOnce({ code: 0, output: 'skill installed' });
       const write = vi.fn();
       await runUpdate(
         { method },
@@ -340,6 +345,12 @@ describe('explicit installation', () => {
       );
       expect(runner.mock.calls[0]).toEqual([method, args, { stdoutToStderr: false }]);
       expect(runner.mock.calls[1]).toEqual(['trooly', ['version'], { stdoutToStderr: false }]);
+      expect(runner.mock.calls[2]).toEqual([
+        'trooly',
+        ['setup', '--yes', '--skip-login'],
+        { stdoutToStderr: true },
+      ]);
+      expect(runner).toHaveBeenCalledTimes(3);
       expect(write).toHaveBeenCalledWith('Updated to 1.2.3.\n');
     },
   );
@@ -397,6 +408,38 @@ describe('explicit installation', () => {
       ),
     ).rejects.toMatchObject({ code: 'UPDATE_UNVERIFIED' });
   });
+  it.each(['exit', 'spawn'])(
+    'keeps the upgrade successful when skill installation fails by %s',
+    async (failure) => {
+      const runner = vi
+        .fn()
+        .mockResolvedValueOnce({ code: 0, output: 'installed' })
+        .mockResolvedValueOnce({ code: 0, output: '1.2.3\n' });
+      if (failure === 'exit') runner.mockResolvedValueOnce({ code: 1, output: 'offline' });
+      else runner.mockRejectedValueOnce(new Error('spawn failed'));
+      const write = vi.fn();
+      const stderr = vi.spyOn(process.stderr, 'write').mockReturnValue(true);
+      await expect(
+        runUpdate(
+          { method: 'npm', json: true },
+          { runner, targetVersion: async () => '1.2.3', write },
+        ),
+      ).resolves.toBeUndefined();
+      expect(runner.mock.calls[2]).toEqual([
+        'trooly',
+        ['setup', '--yes', '--skip-login'],
+        { stdoutToStderr: true },
+      ]);
+      expect(write).toHaveBeenCalledTimes(1);
+      expect(JSON.parse(write.mock.calls[0][0])).toMatchObject({
+        installed: true,
+        target: '1.2.3',
+      });
+      expect(stderr).toHaveBeenCalledWith(
+        expect.stringContaining('trooly setup --yes --skip-login'),
+      );
+    },
+  );
   it('runs an actual child process without a shell', async () => {
     const stdout = vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     const result = await runProcess(process.execPath, [
@@ -506,4 +549,18 @@ describe('explicit installation', () => {
       args: [script, 'version'],
     });
   });
+  it.each(['PATH', 'Path', 'path'])(
+    'resolves Windows npx through npm JavaScript via %s without a shell',
+    async (key) => {
+      const bin = join(await directory(), 'bin with spaces');
+      const script = join(bin, 'node_modules/npm/bin/npx-cli.js');
+      await mkdir(join(bin, 'node_modules/npm/bin'), { recursive: true });
+      await writeFile(script, '');
+      const args = ['-y', 'skills', 'add', 'C:\\my skills\\trooly', '-g', '-y'];
+      expect(executable('npx', args, 'win32', { [key]: bin })).toEqual({
+        command: process.execPath,
+        args: [script, ...args],
+      });
+    },
+  );
 });

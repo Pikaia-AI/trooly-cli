@@ -47,6 +47,39 @@ function httpExitCode(status: number): number {
   }
 }
 
+function errorHint(code: string | undefined, response: Response): string {
+  // A rejection of a credential type or environment cannot be fixed by logging in again.
+  // Treat the server's code as authoritative; HTTP 401 alone does not imply expired auth.
+  switch (code?.toLowerCase()) {
+    case 'credential_not_accepted':
+      return ' OAuth and API Key credentials cannot access management endpoints. Use the Trooly web app.';
+    case 'environment_mismatch':
+      return ' Check the profile environment and the Trooly-Environment header.';
+    case 'invalid_token':
+    case 'not_logged_in':
+    case 'unauthenticated':
+    case 'unauthorized':
+    case 'invalid_api_key':
+    case 'token_expired':
+    case 'expired_token':
+      return ' Run trooly login or check TROOLY_API_KEY.';
+    case 'oauth_unavailable':
+      return '';
+  }
+  if (
+    !code &&
+    response.status === 401 &&
+    /\binvalid_token\b/.test(response.headers.get('www-authenticate') ?? '')
+  ) {
+    return ' Run trooly login or check TROOLY_API_KEY.';
+  }
+  if (response.status === 403) {
+    return ' Check the granted permissions with trooly auth status or adjust permissions in the platform.';
+  }
+  if (response.status === 426) return ' Run trooly update.';
+  return '';
+}
+
 export function retryDelay(value: string | null, attempt: number, now = Date.now()): number {
   if (value) {
     const seconds = Number(value);
@@ -239,12 +272,11 @@ export class ApiClient {
       const status = response.status;
       const exit = httpExitCode(status);
       let message = payload.error?.message ?? `Request failed (HTTP ${status}).`;
-      if (status === 401) message += ' Run trooly login or check TROOLY_API_KEY.';
-      if (status === 403) {
-        message +=
-          ' Check the granted permissions with trooly auth status; use trooly login --scope write for OAuth or adjust permissions in the platform.';
+      const hint = errorHint(payload.error?.code, response);
+      if (hint) {
+        if (!/[.!?]$/.test(message)) message += '.';
+        message += hint;
       }
-      if (status === 426) message += ' Run trooly update.';
       // Exact token strings are not retained in diagnostics; only platform errors are displayed.
       if (this.options.token) message = message.split(this.options.token).join('[REDACTED]');
       throw new CliError(

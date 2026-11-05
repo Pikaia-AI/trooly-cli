@@ -226,6 +226,12 @@ describe('device OAuth', () => {
 });
 
 describe('login method selection', () => {
+  it.each(['darwin', 'linux', 'win32'] as const)(
+    'uses a device code without an interactive terminal on %s',
+    (platform) => {
+      expect(chooseLoginMethod(false, { DISPLAY: ':1' }, platform, false)).toBe('device');
+    },
+  );
   it.each([
     [true, {}, 'darwin', 'device'],
     [false, { SSH_CONNECTION: '' }, 'darwin', 'device'],
@@ -238,7 +244,7 @@ describe('login method selection', () => {
   ] as const)(
     'chooses based on explicit request and environment',
     (device, env, platform, expected) => {
-      expect(chooseLoginMethod(device, env, platform)).toBe(expected);
+      expect(chooseLoginMethod(device, env, platform, true)).toBe(expected);
     },
   );
 });
