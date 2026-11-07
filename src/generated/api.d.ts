@@ -4965,7 +4965,7 @@ export interface components {
             /** @description Opaque catalog option identifier. */
             option_id?: string;
         };
-        /** @description A complete Quantitative Study design read view, for a working draft or a published snapshot. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
+        /** @description A complete Study design read view, for a working draft or a published snapshot. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
         StudyDesignDraft: {
             /** @description Research objective and contextual constraints. */
             brief?: components["schemas"]["StudyResearchBrief"];
@@ -5147,21 +5147,12 @@ export interface components {
              */
             min?: number;
         };
-        /** @description Respondent file submission requirements and optional follow-up. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
+        /** @description Respondent file submission requirements and researcher-owned upload review expectations. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
         StudyFileUploadSpec: {
             /** @description Supported concrete MIME types; extensions and wildcards are rejected. Omitted or empty means unrestricted. */
             accepted_mime_types?: string[];
-            /** @description Researcher instructions describing the expected file content. */
+            /** @description Researcher instructions describing the expected file content for upload review. */
             content_requirements?: string;
-            /**
-             * @description Follow-up setting; omitted or none disables probing. Enabling it allows one round after upload and requires content_requirements before publication.
-             *     - `none`: No interviewer follow-up after the response.
-             *     - `light`: Light probing, with at most one follow-up for text responses.
-             *     - `medium`: Moderate probing, with at most one follow-up for text responses.
-             *     - `heavy`: Deeper probing, with at most three follow-ups for text responses. File-upload responses allow only one follow-up round regardless of intensity.
-             * @enum {string}
-             */
-            follow_up?: "none" | "light" | "medium" | "heavy";
             /**
              * Format: int32
              * @description Maximum number of uploaded files; defaults to 1.
@@ -5267,7 +5258,7 @@ export interface components {
             /** @description Blocks in committed display order; omitted or empty means the outline is empty. */
             blocks?: components["schemas"]["StudyBlockOrder"][];
         };
-        /** @description Quantitative Study-wide input mode, language, translation and voice-readout settings. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
+        /** @description Study-wide input mode, language, translation and voice-readout settings. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
         StudyParticipationSettings: {
             /** @description Server-derived analysis language, synchronized with study_locale; read-only. */
             readonly analysis_language?: string;
@@ -5376,7 +5367,7 @@ export interface components {
             quota_groups?: components["schemas"]["StudyQuotaGroup"][];
             /**
              * Format: int32
-             * @description Quantitative Study-wide completion limit, at least 1 when set; absence means no configured limit, never zero.
+             * @description Study-wide completion limit, at least 1 when set; absence means no configured limit, never zero.
              */
             response_limit?: number;
             /**
@@ -5398,9 +5389,9 @@ export interface components {
         StudyRespondentCopy: {
             /** @description Message shown after successful completion. */
             closing_prompt?: string;
-            /** @description Quantitative Study-level recruitment description; required for panel recruitment, optional for self recruitment. */
+            /** @description Study-level recruitment description; required for panel recruitment, optional for self recruitment. */
             external_description?: string;
-            /** @description Quantitative Study-level recruitment title, independent of the project name and welcome title. */
+            /** @description Study-level recruitment title, independent of the project name and welcome title. */
             external_title?: string;
             /** @description Welcome instructions shown before the interview. */
             opening_prompt?: string;
@@ -5507,10 +5498,19 @@ export interface components {
              *     - `none`: No interviewer follow-up after the response.
              *     - `light`: Light probing, with at most one follow-up for text responses.
              *     - `medium`: Moderate probing, with at most one follow-up for text responses.
-             *     - `heavy`: Deeper probing, with at most three follow-ups for text responses. File-upload responses allow only one follow-up round regardless of intensity.
+             *     - `heavy`: Deeper probing, with at most three follow-ups for text responses.
              * @enum {string}
              */
             follow_up?: "none" | "light" | "medium" | "heavy";
+            /**
+             * @description Per-question capture mode for text responses; unknown or omitted inherits the study interview mode.
+             *     - `text`: Respondents answer using text input.
+             *     - `voice`: Respondents answer using microphone input; open responses are transcribed.
+             *     - `camera`: Respondents participate with microphone and camera input.
+             *     - `camera_screen`: Respondents participate with microphone, camera and screen sharing.
+             * @enum {string}
+             */
+            interview_mode?: "text" | "voice" | "camera" | "camera_screen";
         };
         /** @description Enabled voice catalog entries for one platform language. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
         StudyTtsLanguageVoices: {
@@ -5584,7 +5584,7 @@ export interface components {
         StudyWriteAddClipQuoteReq: {
             /** @description Required positive decimal string copied from clip.revision. Clip revisions start at one; zero is rejected. A stale revision returns 409 CONFLICT. Reload before retrying. */
             expected_revision: string;
-            /** @description Quotation to append to the clip. The response must belong to this Quantitative Study. Supply the immutable snapshot and matching Unicode coordinates; they are stored together. */
+            /** @description Quotation to append to the clip. The response must belong to this Study. Supply the immutable snapshot and matching Unicode coordinates; they are stored together. */
             quote?: components["schemas"]["StudyWriteUserClipQuoteInput"];
         };
         /** @description Insert questions or statements contiguously into the block selected by the anchor. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
@@ -5779,7 +5779,7 @@ export interface components {
         StudyWriteCopyReportReq: Record<string, never>;
         /** @description Request to create a user clip. Path identifiers and authenticated identity are supplied by the API. Use snake_case fields. IDs and 64-bit integers are strings. Unknown fields, null, and numeric 64-bit integers are rejected. */
         StudyWriteCreateClipReq: {
-            /** @description Optional first quotation, created atomically with the clip. Its response must belong to this Quantitative Study. */
+            /** @description Optional first quotation, created atomically with the clip. Its response must belong to this Study. */
             first_quote?: components["schemas"]["StudyWriteUserClipQuoteInput"];
             /** @description Clip tags. Each tag uses source user or auto; auto tags must already exist in the normalized theme vocabulary. On updates, an empty array removes all tags; omission leaves them unchanged. */
             tags?: components["schemas"]["StudyWriteClipTag"][];
@@ -5797,7 +5797,7 @@ export interface components {
             expires_at?: string;
             /** @description Identifier of the resource being shared. It must belong to the path project. */
             target_id?: string;
-            /** @description Shared resource type: report, clip or response. Conversation sharing is not supported. */
+            /** @description Shared resource type: report, clip or response. Agent conversation sharing is outside this API. */
             target_type?: string;
         };
         /** @description A supported panel demographic criterion selected from the platform catalog. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
@@ -5857,7 +5857,7 @@ export interface components {
             /** @description Required signed capability returned by multipart allocation. Reuse the token for sign, complete and abort; do not use it as an API credential. */
             upload_token: string;
         };
-        /** @description One Quantitative Study edit command. Commands execute in order and the entire batch is atomic. All new- aliases are registered for the batch; commands still require their target objects to exist when executed and references must obey outline ordering. created_id_map in the response maps aliases to committed IDs. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
+        /** @description One Study edit command. Commands execute in order and the entire batch is atomic. All new- aliases are registered for the batch; commands still require their target objects to exist when executed and references must obey outline ordering. created_id_map in the response maps aliases to committed IDs. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
         StudyWriteEdit: {
             /** @description Insert ordered blocks. Present only when type matches this field name. */
             add_blocks?: components["schemas"]["StudyWriteAddBlocks"];
@@ -6006,21 +6006,12 @@ export interface components {
              */
             type: "update_rows";
         });
-        /** @description Respondent file submission requirements and optional follow-up. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
+        /** @description Respondent file submission requirements and researcher-owned upload review expectations. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
         StudyWriteFileUploadSpec: {
             /** @description Supported concrete MIME types; extensions and wildcards are rejected. Omitted or empty means unrestricted. */
             accepted_mime_types?: string[];
-            /** @description Researcher instructions describing the expected file content. */
+            /** @description Researcher instructions describing the expected file content for upload review. */
             content_requirements?: string;
-            /**
-             * @description Follow-up setting; omitted or none disables probing. Enabling it allows one round after upload and requires content_requirements before publication.
-             *     - `none`: No interviewer follow-up after the response.
-             *     - `light`: Light probing, with at most one follow-up for text responses.
-             *     - `medium`: Moderate probing, with at most one follow-up for text responses.
-             *     - `heavy`: Deeper probing, with at most three follow-ups for text responses. File-upload responses allow only one follow-up round regardless of intensity.
-             * @enum {string}
-             */
-            follow_up?: "none" | "light" | "medium" | "heavy";
             /**
              * Format: int32
              * @description Maximum number of uploaded files; defaults to 1.
@@ -6209,7 +6200,7 @@ export interface components {
              */
             type: "delete";
         });
-        /** @description Quantitative Study-wide input mode, language, translation and voice-readout settings. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
+        /** @description Study-wide input mode, language, translation and voice-readout settings. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
         StudyWriteParticipationSettings: {
             /**
              * @description text, voice, camera or camera_screen input mode; absent until selected.
@@ -6233,7 +6224,7 @@ export interface components {
         StudyWritePatchReportBlockReq: {
             /** @description Required nonnegative decimal string copied from the current resource revision. Zero is valid. A stale revision returns 409 CONFLICT; reload before retrying. */
             expected_revision: string;
-            /** @description Replacement text for a markdown or heading block. Numeric snapshots cannot be edited; unsupported content is rejected. */
+            /** @description Replacement text for a markdown or heading block. Numeric snapshots cannot be edited; downstream validation reports unsupported content. */
             text?: string;
         };
         /** @description Request a signed PUT upload for a study asset. Set multipart to true to opt into multipart upload when the file exceeds the product threshold; unsupported storage falls back to a single PUT. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
@@ -6372,7 +6363,7 @@ export interface components {
         };
         /** @description Request to reprocess a response. Path identifiers and authenticated identity are supplied by the API. Use snake_case fields. IDs and 64-bit integers are strings. Unknown fields, null, and numeric 64-bit integers are rejected. */
         StudyWriteReprocessInterviewReq: {
-            /** @description Processing stages to reset: projection, tagging, condense, summary, translate or index. Dependent processing stages are included automatically. */
+            /** @description Processing stages to reset: projection, tagging, condense, summary, translate or index. The service expands dependent stages using the same pipeline as the product. */
             steps?: string[];
         };
         /** @description Research goals and context, separate from respondent eligibility. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
@@ -6386,9 +6377,9 @@ export interface components {
         StudyWriteRespondentCopy: {
             /** @description Message shown after successful completion. */
             closing_prompt?: string;
-            /** @description Quantitative Study-level recruitment description; required for panel recruitment, optional for self recruitment. */
+            /** @description Study-level recruitment description; required for panel recruitment, optional for self recruitment. */
             external_description?: string;
-            /** @description Quantitative Study-level recruitment title, independent of the project name and welcome title. */
+            /** @description Study-level recruitment title, independent of the project name and welcome title. */
             external_title?: string;
             /** @description Welcome instructions shown before the interview. */
             opening_prompt?: string;
@@ -6538,16 +6529,25 @@ export interface components {
              *     - `none`: No interviewer follow-up after the response.
              *     - `light`: Light probing, with at most one follow-up for text responses.
              *     - `medium`: Moderate probing, with at most one follow-up for text responses.
-             *     - `heavy`: Deeper probing, with at most three follow-ups for text responses. File-upload responses allow only one follow-up round regardless of intensity.
+             *     - `heavy`: Deeper probing, with at most three follow-ups for text responses.
              * @enum {string}
              */
             follow_up?: "none" | "light" | "medium" | "heavy";
+            /**
+             * @description Per-question capture mode for text responses; unknown or omitted inherits the study interview mode.
+             *     - `text`: Respondents answer using text input.
+             *     - `voice`: Respondents answer using microphone input; open responses are transcribed.
+             *     - `camera`: Respondents participate with microphone and camera input.
+             *     - `camera_screen`: Respondents participate with microphone, camera and screen sharing.
+             * @enum {string}
+             */
+            interview_mode?: "text" | "voice" | "camera" | "camera_screen";
         };
         /** @description Request to re-normalize question themes. Path identifiers and authenticated identity are supplied by the API. Use snake_case fields. IDs and 64-bit integers are strings. Unknown fields, null, and numeric 64-bit integers are rejected. */
         StudyWriteTriggerNormalizationReq: {
             /** @description Optional concept identifier qualifying the question. */
             concept_id?: string;
-            /** @description Question identifier within this Quantitative Study. Omit only when the operation permits all questions. */
+            /** @description Question identifier within this Study. Omit only when the operation permits all questions. */
             item_id?: string;
         };
         /** @description Voice readout configuration; when absent, readout is enabled, initially unmuted, with default voices. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
@@ -6646,7 +6646,7 @@ export interface components {
             /** @description Opaque ID or batch alias of the matrix question whose rows are modified. */
             question_id?: string;
         };
-        /** @description Patch the documented participation settings. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
+        /** @description Patch researcher-controlled participation settings; derived and agent-only settings are not writable. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
         StudyWriteUpdateSettings: {
             /** @description Values for the explicitly selected update_fields. A selected field omitted from patch is cleared; fields not selected remain unchanged. Omit patch to clear all selected fields. */
             patch?: components["schemas"]["StudyWriteParticipationSettings"];
@@ -6659,9 +6659,9 @@ export interface components {
             answer_id?: string;
             /** @description Optional concept identifier qualifying the question. */
             concept_id?: string;
-            /** @description Response identifier belonging to this Quantitative Study, preserved as an opaque string. */
+            /** @description Response identifier belonging to this Study, preserved as an opaque string. */
             interview_id?: string;
-            /** @description Question identifier within this Quantitative Study. Omit only when the operation permits all questions. */
+            /** @description Question identifier within this Study. Omit only when the operation permits all questions. */
             item_id?: string;
             /** @description Published outline version as a decimal string. Preserve it without numeric conversion. */
             outline_version_no?: string;
@@ -6709,9 +6709,9 @@ export interface components {
              * @description Zero-based interview round index; omitted means zero.
              */
             h?: number;
-            /** @description Response identifier belonging to this Quantitative Study, preserved as an opaque string. */
+            /** @description Response identifier belonging to this Study, preserved as an opaque string. */
             interview_id?: string;
-            /** @description Question identifier within this Quantitative Study. Omit only when the operation permits all questions. */
+            /** @description Question identifier within this Study. Omit only when the operation permits all questions. */
             item_id?: string;
             /** @description Optional researcher note about the quotation. */
             note?: string;
@@ -6969,11 +6969,6 @@ export interface components {
             accepted_mime_types?: string[];
             /** @description content requirements in the FileUploadSpec read view. */
             content_requirements?: string;
-            /**
-             * @description follow up in the FileUploadSpec read view.
-             * @enum {string}
-             */
-            follow_up?: "none" | "light" | "medium" | "heavy";
             /**
              * Format: int32
              * @description max files in the FileUploadSpec read view.
