@@ -2630,10 +2630,118 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/trooly/v2/research-reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Create a private custom research report
+         * @description Creates an independent asynchronous report task; it never replaces the standard project report. Returns HTTP 200 with data.task immediately. Poll GET /trooly/v2/research-reports/{run_id}; only status=ready is a validated result. Requires trooly.project.write plus current read access to every selected or interview-derived project. Explicit interview_ids additionally require trooly.interview.read; doc_ids require platform.knowledge_doc.read. All project sources must be enabled by the server. Example projects are read-only. Authentication derives the organization and creator; callers cannot supply either. Existing credential authorization is reused. This operation inherits the public authentication schemes of this document.
+         *
+         *     Supply Idempotency-Key or body idempotency_key (maximum 160 UTF-8 bytes); when both are supplied they must match. Reuse the same key and input after an uncertain request to retrieve the original task and frozen data version; changed input returns 422 IDEMPOTENCY_KEY_REUSED. Source permissions are checked again before idempotent replay. The task is private to its authenticated owner and organization; this endpoint does not create a public share. Sandbox credentials return 501.
+         */
+        post: operations["studyCreateCustomResearchReport"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trooly/v2/research-reports/{run_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Read a private custom report task
+         * @description Reads progress and result for the same authenticated owner and organization. Requires trooly.report.read and current permission to every original source, including trooly.interview.read for explicit interviews and platform.knowledge_doc.read for knowledge documents. Revoking a source permission also blocks access to an already generated report. Inaccessible tasks return 404. Only status=ready is a validated complete report; pending and running are in progress, while needs_attention, budget_exhausted, failed and cancelled must not be rendered as successful reports. Ready tasks include title, blocks, snapshot_id and sources. The result is structured report data, not HTML or a public report URL, and does not replace the standard project report. Sandbox credentials return 501.
+         */
+        get: operations["studyGetCustomResearchReport"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Select at least one project or interview. A retry key must be supplied in the header or body. Task organization and creator are read-only authentication values. */
+        StudyCustomReportRequest: {
+            /** @description Optional report goal, language, style and structure. Empty input uses the default report policy; a custom prompt can request its own structure. */
+            prompt?: string;
+            /** @description Select eligible projected interviews from these enabled projects. When interview_ids are also supplied, all interviews must belong to the selected projects. */
+            project_ids?: string[];
+            /** @description Optional explicit interview cohort, or the source selector when project_ids is omitted. Source projects are derived and authorized; incompatible denominators are kept separate. */
+            interview_ids?: string[];
+            /** @description Enterprise KnowledgeEngine documents, including the Voice Agent knowledge base. Accepts decimal IDs or doc_<id>. Retrieves the summary and up to ten prompt-relevant excerpts per document, not full document text. */
+            doc_ids?: string[];
+            /** @description Explicit ProjectMaterial IDs owned by selected or interview-derived projects. Project selection does not implicitly include all project materials. */
+            material_ids?: string[];
+            /** @description Required unless Idempotency-Key header is supplied. Maximum 160 UTF-8 bytes; must equal the header when both are present. */
+            idempotency_key?: string;
+        } | {
+            project_ids: unknown;
+        } | {
+            interview_ids: unknown;
+        };
+        StudyCustomReportResult: {
+            task: components["schemas"]["StudyCustomReportTask"];
+        };
+        /** @description Private asynchronous task. Only ready contains a validated report; do not treat HTTP 200 or other task statuses as generation success. */
+        StudyCustomReportTask: {
+            /** @description Opaque task identifier used for polling. */
+            run_id: string;
+            /** @enum {string} */
+            status: "pending" | "running" | "ready" | "needs_attention" | "budget_exhausted" | "failed" | "cancelled";
+            /** @description Current workflow stage, such as plan, execute, reflect, compose or validate. */
+            stage?: string;
+            prompt?: string;
+            project_ids?: string[];
+            interview_ids?: string[];
+            doc_ids?: string[];
+            material_ids?: string[];
+            /** @description Validated report title when status is ready. */
+            title?: string;
+            /** @description Structured report blocks with canonical source-bound evidence when ready; not an HTML document. */
+            blocks?: {
+                [key: string]: unknown;
+            }[];
+            /** @description Owner-scoped diagnostic for an unsuccessful or interrupted task, not a successful result. */
+            last_error?: string;
+            /** Format: date-time */
+            created_at?: string;
+            /** Format: date-time */
+            updated_at?: string;
+            /** @description Frozen authorized dataset version for the ready report. */
+            snapshot_id?: string;
+            /** @description Canonical source references for the ready report. */
+            sources?: components["schemas"]["StudyCustomReportSource"][];
+        };
+        StudyCustomReportSource: {
+            /** @description Namespaced source ID used in the report. */
+            id: string;
+            /** @enum {string} */
+            kind: "interview" | "document" | "statistics";
+            project_id?: string;
+            interview_id?: string;
+            document_id?: string;
+            title: string;
+            locator?: string;
+            scope?: string;
+            /** @description Distinguishes KnowledgeEngine documents from project materials when present. */
+            document_namespace?: string;
+        };
         StudyAudiencesUpdateResult: {
             /** @description Number of groups confirmed successful. */
             updated_count?: number;
@@ -4965,7 +5073,7 @@ export interface components {
             /** @description Opaque catalog option identifier. */
             option_id?: string;
         };
-        /** @description A complete Quantitative Study design read view, for a working draft or a published snapshot. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
+        /** @description A complete Study design read view, for a working draft or a published snapshot. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
         StudyDesignDraft: {
             /** @description Research objective and contextual constraints. */
             brief?: components["schemas"]["StudyResearchBrief"];
@@ -5147,21 +5255,12 @@ export interface components {
              */
             min?: number;
         };
-        /** @description Respondent file submission requirements and optional follow-up. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
+        /** @description Respondent file submission requirements and researcher-owned upload review expectations. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
         StudyFileUploadSpec: {
             /** @description Supported concrete MIME types; extensions and wildcards are rejected. Omitted or empty means unrestricted. */
             accepted_mime_types?: string[];
-            /** @description Researcher instructions describing the expected file content. */
+            /** @description Researcher instructions describing the expected file content for upload review. */
             content_requirements?: string;
-            /**
-             * @description Follow-up setting; omitted or none disables probing. Enabling it allows one round after upload and requires content_requirements before publication.
-             *     - `none`: No interviewer follow-up after the response.
-             *     - `light`: Light probing, with at most one follow-up for text responses.
-             *     - `medium`: Moderate probing, with at most one follow-up for text responses.
-             *     - `heavy`: Deeper probing, with at most three follow-ups for text responses. File-upload responses allow only one follow-up round regardless of intensity.
-             * @enum {string}
-             */
-            follow_up?: "none" | "light" | "medium" | "heavy";
             /**
              * Format: int32
              * @description Maximum number of uploaded files; defaults to 1.
@@ -5267,7 +5366,7 @@ export interface components {
             /** @description Blocks in committed display order; omitted or empty means the outline is empty. */
             blocks?: components["schemas"]["StudyBlockOrder"][];
         };
-        /** @description Quantitative Study-wide input mode, language, translation and voice-readout settings. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
+        /** @description Study-wide input mode, language, translation and voice-readout settings. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
         StudyParticipationSettings: {
             /** @description Server-derived analysis language, synchronized with study_locale; read-only. */
             readonly analysis_language?: string;
@@ -5376,7 +5475,7 @@ export interface components {
             quota_groups?: components["schemas"]["StudyQuotaGroup"][];
             /**
              * Format: int32
-             * @description Quantitative Study-wide completion limit, at least 1 when set; absence means no configured limit, never zero.
+             * @description Study-wide completion limit, at least 1 when set; absence means no configured limit, never zero.
              */
             response_limit?: number;
             /**
@@ -5398,9 +5497,9 @@ export interface components {
         StudyRespondentCopy: {
             /** @description Message shown after successful completion. */
             closing_prompt?: string;
-            /** @description Quantitative Study-level recruitment description; required for panel recruitment, optional for self recruitment. */
+            /** @description Study-level recruitment description; required for panel recruitment, optional for self recruitment. */
             external_description?: string;
-            /** @description Quantitative Study-level recruitment title, independent of the project name and welcome title. */
+            /** @description Study-level recruitment title, independent of the project name and welcome title. */
             external_title?: string;
             /** @description Welcome instructions shown before the interview. */
             opening_prompt?: string;
@@ -5507,10 +5606,19 @@ export interface components {
              *     - `none`: No interviewer follow-up after the response.
              *     - `light`: Light probing, with at most one follow-up for text responses.
              *     - `medium`: Moderate probing, with at most one follow-up for text responses.
-             *     - `heavy`: Deeper probing, with at most three follow-ups for text responses. File-upload responses allow only one follow-up round regardless of intensity.
+             *     - `heavy`: Deeper probing, with at most three follow-ups for text responses.
              * @enum {string}
              */
             follow_up?: "none" | "light" | "medium" | "heavy";
+            /**
+             * @description Per-question capture mode for text responses; unknown or omitted inherits the study interview mode.
+             *     - `text`: Respondents answer using text input.
+             *     - `voice`: Respondents answer using microphone input; open responses are transcribed.
+             *     - `camera`: Respondents participate with microphone and camera input.
+             *     - `camera_screen`: Respondents participate with microphone, camera and screen sharing.
+             * @enum {string}
+             */
+            interview_mode?: "text" | "voice" | "camera" | "camera_screen";
         };
         /** @description Enabled voice catalog entries for one platform language. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
         StudyTtsLanguageVoices: {
@@ -5584,7 +5692,7 @@ export interface components {
         StudyWriteAddClipQuoteReq: {
             /** @description Required positive decimal string copied from clip.revision. Clip revisions start at one; zero is rejected. A stale revision returns 409 CONFLICT. Reload before retrying. */
             expected_revision: string;
-            /** @description Quotation to append to the clip. The response must belong to this Quantitative Study. Supply the immutable snapshot and matching Unicode coordinates; they are stored together. */
+            /** @description Quotation to append to the clip. The response must belong to this Study. Supply the immutable snapshot and matching Unicode coordinates; they are stored together. */
             quote?: components["schemas"]["StudyWriteUserClipQuoteInput"];
         };
         /** @description Insert questions or statements contiguously into the block selected by the anchor. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
@@ -5779,7 +5887,7 @@ export interface components {
         StudyWriteCopyReportReq: Record<string, never>;
         /** @description Request to create a user clip. Path identifiers and authenticated identity are supplied by the API. Use snake_case fields. IDs and 64-bit integers are strings. Unknown fields, null, and numeric 64-bit integers are rejected. */
         StudyWriteCreateClipReq: {
-            /** @description Optional first quotation, created atomically with the clip. Its response must belong to this Quantitative Study. */
+            /** @description Optional first quotation, created atomically with the clip. Its response must belong to this Study. */
             first_quote?: components["schemas"]["StudyWriteUserClipQuoteInput"];
             /** @description Clip tags. Each tag uses source user or auto; auto tags must already exist in the normalized theme vocabulary. On updates, an empty array removes all tags; omission leaves them unchanged. */
             tags?: components["schemas"]["StudyWriteClipTag"][];
@@ -5797,7 +5905,7 @@ export interface components {
             expires_at?: string;
             /** @description Identifier of the resource being shared. It must belong to the path project. */
             target_id?: string;
-            /** @description Shared resource type: report, clip or response. Conversation sharing is not supported. */
+            /** @description Shared resource type: report, clip or response. Agent conversation sharing is outside this API. */
             target_type?: string;
         };
         /** @description A supported panel demographic criterion selected from the platform catalog. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
@@ -5857,7 +5965,7 @@ export interface components {
             /** @description Required signed capability returned by multipart allocation. Reuse the token for sign, complete and abort; do not use it as an API credential. */
             upload_token: string;
         };
-        /** @description One Quantitative Study edit command. Commands execute in order and the entire batch is atomic. All new- aliases are registered for the batch; commands still require their target objects to exist when executed and references must obey outline ordering. created_id_map in the response maps aliases to committed IDs. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
+        /** @description One Study edit command. Commands execute in order and the entire batch is atomic. All new- aliases are registered for the batch; commands still require their target objects to exist when executed and references must obey outline ordering. created_id_map in the response maps aliases to committed IDs. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
         StudyWriteEdit: {
             /** @description Insert ordered blocks. Present only when type matches this field name. */
             add_blocks?: components["schemas"]["StudyWriteAddBlocks"];
@@ -6006,21 +6114,12 @@ export interface components {
              */
             type: "update_rows";
         });
-        /** @description Respondent file submission requirements and optional follow-up. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
+        /** @description Respondent file submission requirements and researcher-owned upload review expectations. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
         StudyWriteFileUploadSpec: {
             /** @description Supported concrete MIME types; extensions and wildcards are rejected. Omitted or empty means unrestricted. */
             accepted_mime_types?: string[];
-            /** @description Researcher instructions describing the expected file content. */
+            /** @description Researcher instructions describing the expected file content for upload review. */
             content_requirements?: string;
-            /**
-             * @description Follow-up setting; omitted or none disables probing. Enabling it allows one round after upload and requires content_requirements before publication.
-             *     - `none`: No interviewer follow-up after the response.
-             *     - `light`: Light probing, with at most one follow-up for text responses.
-             *     - `medium`: Moderate probing, with at most one follow-up for text responses.
-             *     - `heavy`: Deeper probing, with at most three follow-ups for text responses. File-upload responses allow only one follow-up round regardless of intensity.
-             * @enum {string}
-             */
-            follow_up?: "none" | "light" | "medium" | "heavy";
             /**
              * Format: int32
              * @description Maximum number of uploaded files; defaults to 1.
@@ -6209,7 +6308,7 @@ export interface components {
              */
             type: "delete";
         });
-        /** @description Quantitative Study-wide input mode, language, translation and voice-readout settings. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
+        /** @description Study-wide input mode, language, translation and voice-readout settings. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
         StudyWriteParticipationSettings: {
             /**
              * @description text, voice, camera or camera_screen input mode; absent until selected.
@@ -6233,7 +6332,7 @@ export interface components {
         StudyWritePatchReportBlockReq: {
             /** @description Required nonnegative decimal string copied from the current resource revision. Zero is valid. A stale revision returns 409 CONFLICT; reload before retrying. */
             expected_revision: string;
-            /** @description Replacement text for a markdown or heading block. Numeric snapshots cannot be edited; unsupported content is rejected. */
+            /** @description Replacement text for a markdown or heading block. Numeric snapshots cannot be edited; downstream validation reports unsupported content. */
             text?: string;
         };
         /** @description Request a signed PUT upload for a study asset. Set multipart to true to opt into multipart upload when the file exceeds the product threshold; unsupported storage falls back to a single PUT. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
@@ -6372,7 +6471,7 @@ export interface components {
         };
         /** @description Request to reprocess a response. Path identifiers and authenticated identity are supplied by the API. Use snake_case fields. IDs and 64-bit integers are strings. Unknown fields, null, and numeric 64-bit integers are rejected. */
         StudyWriteReprocessInterviewReq: {
-            /** @description Processing stages to reset: projection, tagging, condense, summary, translate or index. Dependent processing stages are included automatically. */
+            /** @description Processing stages to reset: projection, tagging, condense, summary, translate or index. The service expands dependent stages using the same pipeline as the product. */
             steps?: string[];
         };
         /** @description Research goals and context, separate from respondent eligibility. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
@@ -6386,9 +6485,9 @@ export interface components {
         StudyWriteRespondentCopy: {
             /** @description Message shown after successful completion. */
             closing_prompt?: string;
-            /** @description Quantitative Study-level recruitment description; required for panel recruitment, optional for self recruitment. */
+            /** @description Study-level recruitment description; required for panel recruitment, optional for self recruitment. */
             external_description?: string;
-            /** @description Quantitative Study-level recruitment title, independent of the project name and welcome title. */
+            /** @description Study-level recruitment title, independent of the project name and welcome title. */
             external_title?: string;
             /** @description Welcome instructions shown before the interview. */
             opening_prompt?: string;
@@ -6538,16 +6637,25 @@ export interface components {
              *     - `none`: No interviewer follow-up after the response.
              *     - `light`: Light probing, with at most one follow-up for text responses.
              *     - `medium`: Moderate probing, with at most one follow-up for text responses.
-             *     - `heavy`: Deeper probing, with at most three follow-ups for text responses. File-upload responses allow only one follow-up round regardless of intensity.
+             *     - `heavy`: Deeper probing, with at most three follow-ups for text responses.
              * @enum {string}
              */
             follow_up?: "none" | "light" | "medium" | "heavy";
+            /**
+             * @description Per-question capture mode for text responses; unknown or omitted inherits the study interview mode.
+             *     - `text`: Respondents answer using text input.
+             *     - `voice`: Respondents answer using microphone input; open responses are transcribed.
+             *     - `camera`: Respondents participate with microphone and camera input.
+             *     - `camera_screen`: Respondents participate with microphone, camera and screen sharing.
+             * @enum {string}
+             */
+            interview_mode?: "text" | "voice" | "camera" | "camera_screen";
         };
         /** @description Request to re-normalize question themes. Path identifiers and authenticated identity are supplied by the API. Use snake_case fields. IDs and 64-bit integers are strings. Unknown fields, null, and numeric 64-bit integers are rejected. */
         StudyWriteTriggerNormalizationReq: {
             /** @description Optional concept identifier qualifying the question. */
             concept_id?: string;
-            /** @description Question identifier within this Quantitative Study. Omit only when the operation permits all questions. */
+            /** @description Question identifier within this Study. Omit only when the operation permits all questions. */
             item_id?: string;
         };
         /** @description Voice readout configuration; when absent, readout is enabled, initially unmuted, with default voices. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
@@ -6646,7 +6754,7 @@ export interface components {
             /** @description Opaque ID or batch alias of the matrix question whose rows are modified. */
             question_id?: string;
         };
-        /** @description Patch the documented participation settings. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
+        /** @description Patch researcher-controlled participation settings; derived and agent-only settings are not writable. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
         StudyWriteUpdateSettings: {
             /** @description Values for the explicitly selected update_fields. A selected field omitted from patch is cleared; fields not selected remain unchanged. Omit patch to clear all selected fields. */
             patch?: components["schemas"]["StudyWriteParticipationSettings"];
@@ -6659,9 +6767,9 @@ export interface components {
             answer_id?: string;
             /** @description Optional concept identifier qualifying the question. */
             concept_id?: string;
-            /** @description Response identifier belonging to this Quantitative Study, preserved as an opaque string. */
+            /** @description Response identifier belonging to this Study, preserved as an opaque string. */
             interview_id?: string;
-            /** @description Question identifier within this Quantitative Study. Omit only when the operation permits all questions. */
+            /** @description Question identifier within this Study. Omit only when the operation permits all questions. */
             item_id?: string;
             /** @description Published outline version as a decimal string. Preserve it without numeric conversion. */
             outline_version_no?: string;
@@ -6709,9 +6817,9 @@ export interface components {
              * @description Zero-based interview round index; omitted means zero.
              */
             h?: number;
-            /** @description Response identifier belonging to this Quantitative Study, preserved as an opaque string. */
+            /** @description Response identifier belonging to this Study, preserved as an opaque string. */
             interview_id?: string;
-            /** @description Question identifier within this Quantitative Study. Omit only when the operation permits all questions. */
+            /** @description Question identifier within this Study. Omit only when the operation permits all questions. */
             item_id?: string;
             /** @description Optional researcher note about the quotation. */
             note?: string;
@@ -6969,11 +7077,6 @@ export interface components {
             accepted_mime_types?: string[];
             /** @description content requirements in the FileUploadSpec read view. */
             content_requirements?: string;
-            /**
-             * @description follow up in the FileUploadSpec read view.
-             * @enum {string}
-             */
-            follow_up?: "none" | "light" | "medium" | "heavy";
             /**
              * Format: int32
              * @description max files in the FileUploadSpec read view.
@@ -20035,6 +20138,221 @@ export interface operations {
             500: components["responses"]["PlatformError"];
             501: components["responses"]["PlatformError"];
             503: components["responses"]["PlatformError"];
+        };
+    };
+    studyCreateCustomResearchReport: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional environment confirmation: live or sbx_ID. Omit to use the API key's bound environment. A value different from that environment returns 400 ENVIRONMENT_MISMATCH; this header cannot switch environments. */
+                "Trooly-Environment"?: components["parameters"]["TroolyEnvironment"];
+                /** @description Required unless body idempotency_key is supplied. Maximum 160 UTF-8 bytes; header and body keys must match. Preserve the key for uncertain retries. */
+                "Idempotency-Key"?: string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                /**
+                 * @example {
+                 *       "project_ids": [
+                 *         "632823940594540544"
+                 *       ],
+                 *       "doc_ids": [
+                 *         "doc_610814547783077888"
+                 *       ],
+                 *       "prompt": "Analyze product opportunities using enterprise knowledge and participant evidence.",
+                 *       "idempotency_key": "product-opportunities-001"
+                 *     }
+                 */
+                "application/json": components["schemas"]["StudyCustomReportRequest"];
+            };
+        };
+        responses: {
+            /** @description Task accepted or the existing idempotent task returned. Generation may still be pending or running. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"] & {
+                        data?: components["schemas"]["StudyCustomReportResult"];
+                    };
+                };
+            };
+            /** @description INVALID_ARGUMENT: malformed input, unknown fields, missing sources or idempotency key, or conflicting header and body keys. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing or invalid Bearer credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description PERMISSION_DENIED or FORBIDDEN: missing permission, read-only example project, or unavailable product access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND: the task or any source is missing, outside the authenticated organization, or no longer readable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description CONFLICT or IDEMPOTENCY_IN_FLIGHT: request already in progress; retry with the same key and input. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description PRECONDITION_FAILED: capability disabled or invalid source selection; IDEMPOTENCY_KEY_REUSED for a key used with different input. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description RATE_LIMITED: retry with backoff. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SANDBOX_NOT_IMPLEMENTED: custom research reports are not simulated. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAVAILABLE: a required service is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    studyGetCustomResearchReport: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional environment confirmation: live or sbx_ID. Omit to use the API key's bound environment. A value different from that environment returns 400 ENVIRONMENT_MISMATCH; this header cannot switch environments. */
+                "Trooly-Environment"?: components["parameters"]["TroolyEnvironment"];
+            };
+            path: {
+                /** @description Opaque task run ID returned by creation; not a project report_id. */
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Current task progress or validated result when status is ready. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"] & {
+                        data?: components["schemas"]["StudyCustomReportResult"];
+                    };
+                };
+            };
+            /** @description INVALID_ARGUMENT: invalid or overlong run_id. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAUTHORIZED: missing or invalid Bearer credential. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description PERMISSION_DENIED or FORBIDDEN: missing permission, read-only example project, or unavailable product access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description NOT_FOUND: the task or any source is missing, outside the authenticated organization, or no longer readable. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description RATE_LIMITED: retry with backoff. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SANDBOX_NOT_IMPLEMENTED: custom research reports are not simulated. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description UNAVAILABLE: a required service is unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
         };
     };
 }
