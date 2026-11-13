@@ -198,10 +198,21 @@ Tests use local mock servers and synthetic data. They do not call the gateway. `
 Enable the repository's pre-commit hook once in your local clone:
 
 ```sh
-git config core.hooksPath .githooks
+git config --local core.hooksPath .githooks
+git config --get core.hooksPath # expected: .githooks
 ```
 
-The hook runs `npm run sync-openapi` when a commit changes the package version or stages generated API types. If the download updates the file, review and stage `src/generated/api.d.ts`, then retry the commit. The hook leaves the generated diff unstaged for review. For a release without a version bump, run `npm run sync-openapi` and commit any generated changes before tagging.
+This Git setting is local to the clone and is shared by its linked worktrees unless overridden by worktree-specific configuration. New clones need the same setup; `npm ci` alone does not enable the hook. Each checkout must contain `.githooks/pre-commit` from this branch for it to run. Agent setup instructions live in [AGENTS.md](AGENTS.md); `CLAUDE.md` links to that same file.
+
+The hook runs `npm run sync-openapi` when a commit changes the package version or stages generated API types. If the download updates the file, review and stage `src/generated/api.d.ts`, then retry the commit. The hook leaves the generated diff unstaged for review. Ordinary commits skip the download. Existing unstaged changes to the generated file stop the hook before syncing; review and stage or set them aside first. Download or generation failures also stop the commit; resolve the error and retry. For a release without a version bump, run `npm run sync-openapi` and commit any generated changes before tagging.
+
+Before creating a release tag, verify the committed types against the public contract without writing files:
+
+```sh
+npm run sync-openapi -- --check
+```
+
+If the check reports stale types, run `npm run sync-openapi`, review and commit the generated changes, then repeat the check before tagging.
 
 CI checks Linux, macOS, and Windows with Node 22 and 24, including an internal-domain scan. Releases use tags matching `package.json` (`v0.1.0`); stable versions publish to `latest`, prereleases to `next`. The release workflow checks that the tagged API types match the public contract before publishing.
 
