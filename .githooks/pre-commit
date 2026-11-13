@@ -1,0 +1,28 @@
+#!/bin/sh
+set -eu
+
+cd "$(git rev-parse --show-toplevel)"
+generated=src/generated/api.d.ts
+
+if git diff --cached --quiet -- "$generated"; then
+  if git diff --cached --quiet -- package.json; then
+    exit 0
+  fi
+  read_version='JSON.parse(require("node:fs").readFileSync(0, "utf8")).version'
+  previous_version=$(git show HEAD:package.json | node -p "$read_version")
+  staged_version=$(git show :package.json | node -p "$read_version")
+  if [ "$previous_version" = "$staged_version" ]; then
+    exit 0
+  fi
+fi
+
+if ! git diff --quiet -- "$generated"; then
+  echo "Review and stage or set aside the existing changes to $generated before syncing." >&2
+  exit 1
+fi
+
+npm run sync-openapi
+if ! git diff --quiet -- "$generated"; then
+  echo "OpenAPI types updated. Review the diff, run git add $generated, and retry the commit." >&2
+  exit 1
+fi
