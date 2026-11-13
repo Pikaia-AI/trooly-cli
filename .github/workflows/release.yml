@@ -50,5 +50,7 @@ jobs:
           if (process.env.RELEASE_TAG !== `v${pkg.version}`) throw new Error('Tag must match package.json version');
           fs.appendFileSync(process.env.GITHUB_OUTPUT, `channel=${pkg.version.includes('-') ? 'next' : 'latest'}\n`);
           NODE
+      - name: Verify OpenAPI types in the release
+        run: npm run sync-openapi -- --check
       - run: npm pack --dry-run
       - run: npm publish --access public --tag ${{ steps.version.outputs.channel }}
