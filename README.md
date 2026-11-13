@@ -4,6 +4,12 @@ The command-line interface for the [Trooly API](https://open-gateway.trooly.ai/d
 
 ## Install
 
+Give your AI assistant this instruction:
+
+> Install the Trooly CLI: run `npx -y trooly@latest setup --yes`, then help me finish signing in.
+
+For prereleases, use `trooly@next` instead of `trooly@latest`.
+
 ```sh
 npm install -g trooly
 # or
@@ -12,10 +18,28 @@ pnpm add -g trooly
 npx trooly@latest --help
 ```
 
+## Set up the CLI and assistant skill
+
+```sh
+trooly setup
+# Accept setup confirmations automatically
+npx -y trooly@latest setup --yes
+# Install without starting OAuth login
+trooly setup --yes --skip-login
+```
+
+`setup` installs the current CLI version globally when run through npx or pnpm dlx, installs the matching Trooly skill for AI assistants, and starts login. An existing global CLI installation is reused. The skill is fetched from the matching GitHub version tag; if that fails, setup tries the copy bundled with the CLI.
+
+Use `--skip-skill` to omit skill installation, `--skip-login` to omit login, and `--yes` to accept confirmations. In a noninteractive terminal, login uses a device code: open the printed link and enter the code to finish signing in. If OAuth is not enabled on the gateway, use `TROOLY_API_KEY` instead; login exits with code 3.
+
+Each failed step prints a command to retry manually, and setup continues with the remaining steps before reporting their results. With `--json`, stdout contains one summary JSON object; progress, login instructions, and subprocess output go to stderr.
+
 ## Log in
 
 ```sh
 trooly login
+trooly whoami --json
+# Equivalent to:
 trooly auth status --json
 ```
 
@@ -122,21 +146,29 @@ Start with:
 
 ```sh
 trooly guide
+trooly whoami --json
+# Equivalent to:
 trooly auth status --json
 ```
 
-The guide contains tested command sequences and discovery instructions. Use `--json`, check exit codes, and request explicit approval before destructive commands. Read `api describe` before constructing an unfamiliar request.
+The guide prints the body of the bundled `skills/trooly/SKILL.md`, which is also installed by `trooly setup`. It contains tested command sequences and discovery instructions. Use `--json`, check exit codes, and request explicit approval before destructive commands. Read `api describe` before constructing an unfamiliar request.
 
 ## Upgrade
 
 ```sh
 trooly update --check
 trooly update
-trooly update --version 0.1.0
+trooly update --channel next
+trooly update --channel latest
+trooly update --version 0.1.0 --yes
 trooly update --method pnpm
 ```
 
-Updates recognize npm, pnpm, yarn, bun, and Volta installations. Temporary npx/pnpm-dlx runs and project dependencies receive instructions instead of a global install. Global installation uses an exact version and verifies the new CLI version afterward. No update occurs automatically.
+By default, prerelease installations choose the higher semantic version from the npm `next` and `latest` tags; stable installations consider only `latest`. Daily notifications and `trooly update` use the same rule. `--channel latest` or `--channel next` selects only that tag for the current invocation (for example, to move from a prerelease to a newly published stable release). It does not persist a channel preference: future checks follow the installed version. Tags are publisher-controlled; `latest` can still point to a prerelease.
+
+A target at or below the current version is reported as up to date and is never installed automatically, even with `--channel` or `--yes`. To install an older release, specify its exact version with `--version <version>`; the CLI warns before installation and asks for confirmation. Non-interactive terminals require `--yes`. `--version` and `--channel` cannot be combined. `--check` only reports the target (including an explicitly requested downgrade), without installing or prompting.
+
+Updates recognize npm, pnpm, yarn, bun, and Volta installations. Temporary npx/pnpm-dlx runs and project dependencies receive instructions instead of a global install. Global installation uses an exact version and verifies the new CLI version afterward. After a successful upgrade, the matching assistant skill is installed again; a skill installation failure is reported without failing the CLI upgrade. No update occurs automatically.
 
 The advisory version check runs at most once per day, using `npm_config_registry`, `registry=` in `~/.npmrc`, or the public npm registry, in that order. It is skipped in CI and when stderr is not a terminal. A failed or slow check never blocks a command.
 

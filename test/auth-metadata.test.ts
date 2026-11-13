@@ -72,3 +72,26 @@ it('does not leak a malformed token response in a parser error', async () => {
     message: 'Invalid JSON in OAuth response.',
   });
 });
+it('reports unavailable OAuth with the API key alternative', async () => {
+  const base = await server((res) => res.writeHead(404).end());
+  await expect(discoverOAuth(base)).rejects.toMatchObject({
+    code: 'OAUTH_UNAVAILABLE',
+    exitCode: 3,
+    message: expect.stringContaining('TROOLY_API_KEY'),
+  });
+});
+it.each([
+  [500, 1],
+  [426, 5],
+])('preserves discovery error handling for HTTP %i', async (status, exitCode) => {
+  const base = await server((res) => res.writeHead(status).end());
+  await expect(discoverOAuth(base)).rejects.toMatchObject({
+    code: 'OAUTH_DISCOVERY_FAILED',
+    exitCode,
+  });
+});
+it('preserves network errors during availability checks', async () => {
+  const error = new TypeError('fetch failed');
+  vi.spyOn(globalThis, 'fetch').mockRejectedValue(error);
+  await expect(discoverOAuth('http://127.0.0.1:1', { refresh: true })).rejects.toBe(error);
+});

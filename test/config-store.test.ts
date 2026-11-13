@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { readFile, stat } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
+import { basename, join } from 'node:path';
 import { CredentialStore } from '../src/auth/store';
 import { getPaths } from '../src/config/paths';
 import {
@@ -14,6 +15,7 @@ import {
   validateProfileName,
 } from '../src/config/profiles';
 import { temporaryAuthHome } from './auth-support';
+import { expectPrivateWindowsDacl } from './windows-acl-support';
 
 let home: Awaited<ReturnType<typeof temporaryAuthHome>>;
 beforeEach(async () => {
@@ -35,35 +37,27 @@ const tokens = {
 
 describe('credential storage', () => {
   it.runIf(process.platform === 'win32')(
-    'restricts the Windows credential ACL to the current SID',
+    'restricts the Windows credential ACL to the current user and system administrators',
     async () => {
       const store = new CredentialStore();
       await store.write('default', tokens);
-      const { stdout } = await promisify(execFile)(
-        'powershell.exe',
-        [
-          '-NoProfile',
-          '-NonInteractive',
-          '-Command',
-          `
-          $ErrorActionPreference = 'Stop'
-          $acl = Get-Acl -LiteralPath $env:TROOLY_TEST_CREDENTIAL_PATH
-          $rules = @($acl.GetAccessRules($true, $true, [System.Security.Principal.SecurityIdentifier]) | ForEach-Object {
-            @{ sid = $_.IdentityReference.Value; rights = $_.FileSystemRights.ToString(); type = $_.AccessControlType.ToString(); inherited = $_.IsInherited }
-          })
-          @{ protected = $acl.AreAccessRulesProtected; sid = [System.Security.Principal.WindowsIdentity]::GetCurrent().User.Value; rules = $rules } | ConvertTo-Json -Depth 4 -Compress
-        `,
-        ],
-        {
-          windowsHide: true,
-          env: { ...process.env, TROOLY_TEST_CREDENTIAL_PATH: getPaths().credentialsFile },
-        },
-      );
-      const acl = JSON.parse(stdout);
-      expect(acl.protected).toBe(true);
-      expect(acl.rules).toEqual([
-        { sid: acl.sid, rights: 'FullControl', type: 'Allow', inherited: false },
-      ]);
+      const exec = promisify(execFile);
+      const { stdout } = await exec('whoami', ['/user', '/fo', 'csv', '/nh'], {
+        windowsHide: true,
+      });
+      const sid = stdout.match(/S-1-\d+(?:-\d+)+/)?.[0];
+      expect(sid).toBeDefined();
+
+      const credentialPath = getPaths().credentialsFile;
+      const aclPath = join(home.directory, 'credentials.acl');
+      // /save exports SDDL with numeric SIDs or well-known aliases (e.g. LA for RID 500),
+      // plus the actual inheritance-protection flag.
+      // The display output resolves account names and cannot prove inheritance is disabled.
+      await exec('icacls', [credentialPath, '/save', aclPath], { windowsHide: true });
+      const lines = (await readFile(aclPath, 'utf16le')).trim().split(/\r?\n/);
+      expect(lines).toHaveLength(2);
+      expect(lines[0]).toBe(basename(credentialPath));
+      expectPrivateWindowsDacl(lines[1], sid!);
       expect(await store.read('default')).toEqual(tokens);
     },
   );
