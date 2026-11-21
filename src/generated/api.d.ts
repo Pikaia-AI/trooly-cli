@@ -954,6 +954,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/trooly/v2/projects/generate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate a Study from a description or structured research brief
+         * @description Requires trooly.project.write and Idempotency-Key. Returns one clarification or creates a complete draft using public EditProject commands, with at most two corrections after validation. With brief, combines a research coverage plan and proposal, then reviews and repairs the proposal; the confirmed goal is authoritative and background cannot become a new research direction. An unclear goal returns 422 PRECONDITION_FAILED without clarification, regardless of allow_clarification. Self recruitment only; no screening or panel fields. Model usage belongs to the calling credential. May take up to five minutes. Knowledge context requires platform.knowledge_doc.read and per-base authorization. An LLM rewrites the prompt and clarification into queries for parallel retrieval; rewrite failures use the same query input. With brief, query input is study_goal, background and prompt in that order, capped at 20000 Unicode characters to retain the existing query rewriter budget. Without brief, query input remains the full prompt. Deduplicated results are interleaved, with at most eight chunks and 10000 characters. Search failures degrade to available hits or no background. Knowledge bindings are managed separately. Failed creation uses the same best-effort cleanup as structured creation. Retry the identical body with the same key; a clarification answer needs a new key. Sandboxes return 501.
+         */
+        post: operations["studyGenerateProject"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trooly/v2/projects/{id}/draft/revise": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Revise a draft with one instruction
+         * @description Requires trooly.project.write and Idempotency-Key. Reads the authorized current draft, generates public editing commands and applies one atomic batch with expected_revision. Never asks a clarification. Constraints are per call; repeat generation constraints here. Unsupported requests return applied=false with a limitation and concise suggestion. Keeps the existing interview mode and participant_languages; only self recruitment without screening or panel fields is supported. May take up to five minutes. Model usage belongs to the calling credential.
+         */
+        post: operations["studyReviseDraft"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/trooly/v2/projects": {
         parameters: {
             query?: never;
@@ -1430,6 +1470,66 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/trooly/v2/projects/{id}/recruit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * List Quantitative Study recruit records
+         * @description Requires trooly.recruit.read. Returns the existing recruit projection, including participant.uid (the external customer ID) and the persisted params map when available. A UID may have multiple records. Sandbox calls return 501 SANDBOX_NOT_IMPLEMENTED.
+         */
+        get: operations["studyListRecruitRecords"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trooly/v2/projects/{id}/recruits/{recruit}/link-settings": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /**
+         * Update recruitment link parameter settings
+         * @description Requires trooly.project.write (Editor or higher with project visibility). `recruit` is a decimal recruitment task ID or its public_id. Replaces the self-recruitment channel's link parameter configuration with optimistic concurrency control (`expected_version`). Read the current `link_settings` from `GET /trooly/v2/projects/{id}/audiences` (`version` is `"0"` when unconfigured). This `PUT` operation does not use `Idempotency-Key` replay; if a network error leaves the outcome uncertain, read the current settings via `GET /trooly/v2/projects/{id}/audiences` (`channels[].link_settings`) to confirm whether `version` advanced before retrying. Supports up to 10 parameters using letters, digits or underscores (1–64 characters, excluding reserved names) with values up to 2048 UTF-8 bytes. Enabling `one_response_per_person` for the first time requires an `individual` identity parameter and `confirm_invalidate_unsigned_links=true` (otherwise 422 `PRECONDITION_FAILED` with `details.reason=CONFIRM_INVALIDATE_UNSIGNED_LINKS_REQUIRED`). Once `identity_locked` is true, changing or removing `identity_parameter` returns 409 `CONFLICT`.
+         */
+        put: operations["studyUpdateRecruitLinkSettings"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/trooly/v2/projects/{id}/recruits/{recruit}/links": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Generate participant links with custom parameters
+         * @description Requires trooly.project.write (Editor or higher with project visibility). `recruit` is a decimal recruitment task ID or its public_id. Provide exactly one of `uids` or `count`; a batch contains 1–1000 links. The same params object applies to every link in the batch. Saved fixed link parameters are inherited and can be overridden here. With `uids`, the selected identity value comes from each `uid`, while other `individual` parameters may be omitted (or set to `""`, treated as omitted); omitted `individual` parameters are excluded from the signature and captured snapshot so questionnaire tokens render their default fallback text. With `count`, the selected identity and any `individual` values omitted from `params` are generated uniquely at random. Set `short_link=false` for on-demand link issuance to skip short-link creation and receive only the signed `url` (`short_url` is omitted and `generated_count` is not incremented); `short_link` defaults to `true`, where `generated_count` tracks created distributable short links. For `uids`, the same UID and generation parameters produce the same `url` (and `short_url` when enabled). Changing fixed settings or request params produces new links; previously signed links remain valid. Only active recruitment accepts generation. The server signs links; signatures are not exposed as keys or included in answer data. Turning on one response per person requires an individual identity parameter and invalidates older unsigned links after confirmation.
+         */
+        post: operations["studyGenerateRecruitLinks"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/trooly/v2/projects/{id}/clips": {
         parameters: {
             query?: never;
@@ -1599,7 +1699,7 @@ export interface paths {
         };
         /**
          * Export response table
-         * @description Requires trooly.interview.read. Sandbox credentials return 501. Project authorization precedes Quantitative Study type and organization rollout checks. Exports the same eligible response table as the product, including question columns and existing summary/tag metadata. No respondent contact metadata is added. Returns a file stream without a JSON envelope.
+         * @description Requires trooly.interview.read. Sandbox credentials return 501. Project authorization precedes Quantitative Study type and organization rollout checks. Exports the same eligible response table as the product, including question columns, declared recruitment link parameter columns, and existing summary/tag metadata. No respondent contact metadata is added. Returns a file stream without a JSON envelope.
          */
         get: operations["studyExportResponses"];
         put?: never;
@@ -1679,7 +1779,7 @@ export interface paths {
         };
         /**
          * Get a Quantitative Study response
-         * @description Requires trooly.interview.read. Project authorization precedes Quantitative Study type and rollout checks. Sandbox credentials return 501. Personal profile fields, raw media keys and unsigned media URLs are excluded. The response must belong to the path project. Stored translations and review conclusions are included; use the transcript endpoints for original transcripts.
+         * @description Requires trooly.interview.read. Project authorization precedes Quantitative Study type and rollout checks. Sandbox credentials return 501. Personal profile fields, raw media keys and unsigned media URLs are excluded. The response must belong to the path project. A review object with status (pending/approved/rejected), stage (machine/human), and nullable decided_at is included. Stored translations and review conclusions are included; use the transcript endpoints for original transcripts.
          */
         get: operations["studyGetAStudyResponse"];
         put?: never;
@@ -2764,10 +2864,34 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** @description Projection of the stored review disposition. pending includes submitted responses awaiting a terminal decision. */
+        StudyResponseReview: {
+            /**
+             * @description Final review outcome; a machine pass awaiting human review remains pending.
+             * @enum {string}
+             */
+            status: "pending" | "approved" | "rejected";
+            /**
+             * @description Current or final deciding review stage.
+             * @enum {string}
+             */
+            stage: "machine" | "human";
+            /**
+             * Format: date-time
+             * @description Decision time; null while pending or when a legacy decision time is unknown.
+             */
+            decided_at: string | null;
+        };
         /** @description Select at least one project or interview. A retry key must be supplied in the header or body. Task organization and creator are read-only authentication values. */
         StudyCustomReportRequest: {
             /** @description Optional report goal, language, style and structure. Empty input uses the default report policy; a custom prompt can request its own structure. */
             prompt?: string;
+            /**
+             * @description Optional BCP-47 language for report prose, tag names and definitions, and response summaries. When omitted, retain the existing prompt and project language behavior. Supplied tag IDs and meanings are retained, keeping names and definitions unchanged if already in the target language or translating them into it.
+             * @example zh-CN
+             */
+            language?: string;
+            response_tags?: components["schemas"]["StudyResponseTagsOptions"];
             /** @description Select eligible projected interviews from these enabled projects. When interview_ids are also supplied, all interviews must belong to the selected projects. */
             project_ids?: string[];
             /** @description Optional explicit interview cohort, or the source selector when project_ids is omitted. Source projects are derived and authorized; incompatible denominators are kept separate. */
@@ -2813,8 +2937,63 @@ export interface components {
             updated_at?: string;
             /** @description Frozen authorized dataset version for the ready report. */
             snapshot_id?: string;
+            response_tags?: components["schemas"]["StudyResponseTagsResult"];
             /** @description Canonical source references for the ready report. */
             sources?: components["schemas"]["StudyCustomReportSource"][];
+        };
+        StudyResponseTag: {
+            id: string;
+            name: string;
+            definition: string;
+        };
+        StudyResponseTagDimension: {
+            /** @description Unique within this request. */
+            key: string;
+            /** @description Dimension meaning, treated as untrusted data rather than model instructions. */
+            instruction: string;
+            /** @default 2 */
+            max_tags_per_response: number;
+            /** @description Optional existing codebook. IDs must be unique within the dimension. Entries are retained unchanged; new tags are added only for clearly uncovered meanings, up to 30 total. */
+            tags?: components["schemas"]["StudyResponseTag"][];
+        };
+        /** @description Optional per-response coding over the frozen interview cohort. Included in the idempotency fingerprint. Invalid values return HTTP 400 with error.details.path. Omit to retain the original workflow and result. */
+        StudyResponseTagsOptions: {
+            dimensions: components["schemas"]["StudyResponseTagDimension"][];
+            /**
+             * @description Include a one-sentence summary of at most 120 characters for each successfully coded response.
+             * @default false
+             */
+            response_summary: boolean;
+        };
+        /** @description Present only when requested and the task is ready. Covers every frozen interview exactly once. Counts are computed by code, deduplicated by interview. Invalid rows after one batch repair have empty tags objects. */
+        StudyResponseTagsResult: {
+            dimensions: {
+                key: string;
+                tags: {
+                    id: string;
+                    name: string;
+                    definition: string;
+                    /** @description Number of distinct interviews with this tag; never model-counted. */
+                    count: number;
+                }[];
+                tagged_responses: number;
+                /** @description No relevant content in this dimension, or a row that failed validation after repair. */
+                untagged_responses: number;
+            }[];
+            responses: {
+                interview_id: string;
+                project_id: string;
+                /** @description Dimension key to tag IDs. No relevant content uses an empty array; a failed row uses {}. */
+                tags: {
+                    [key: string]: string[];
+                };
+                /** @description Dimension key to supporting source IDs belonging to this interview. */
+                evidence: {
+                    [key: string]: string[];
+                };
+                /** @description Present only when requested and the response passed validation. */
+                summary?: string;
+            }[];
         };
         StudyCustomReportSource: {
             /** @description Namespaced source ID used in the report. */
@@ -3236,6 +3415,142 @@ export interface components {
             expires_at?: string;
             multipart_upload?: components["schemas"]["StudyAssetMultipartUpload"];
         };
+        /** @description Per-call limits checked against the entire candidate. Defaults do not affect structured creation/editing. */
+        StudyGenerationConstraints: {
+            /**
+             * @description Maximum total questions including conditional questions.
+             * @default 10
+             */
+            max_questions: number;
+            /**
+             * @description Maximum text-response questions; cannot exceed max_questions. Omitted default is capped by max_questions.
+             * @default 3
+             */
+            max_open_questions: number;
+            /**
+             * @description Generic screening permission. This self-only release never generates screening, even when true.
+             * @default false
+             */
+            allow_screening: boolean;
+        };
+        StudyGenerateBrief: components["schemas"]["StudyWriteResearchBrief"] & {
+            /** @description Confirmed research goal; Unicode character limits apply after trimming. Never infer a goal from background. */
+            study_goal: string;
+            /** @description Optional factual context; Unicode character limit applies after trimming. */
+            background?: string;
+        };
+        StudyGenerateRequest: {
+            /** @description Participant context */
+            prompt: string;
+            brief?: components["schemas"]["StudyGenerateBrief"];
+            /** @description Optional additional response languages from GET /trooly/v2/languages. At most 20 entries before deduplication; duplicates and the research language are removed. An empty array means research language only. Settings are saved atomically with the generated draft and translations are queued through the editor translation pipeline; creation does not wait for completion. Enqueue failure still returns 201 with a TRANSLATION_NOT_QUEUED warning; publication automatically generates missing translations. */
+            participant_languages?: string[];
+            /**
+             * @description Research and questionnaire language.
+             * @enum {string}
+             */
+            language: "en" | "zh";
+            /**
+             * @description Confirmed recruitment source; only self is currently accepted.
+             * @enum {string}
+             */
+            recruitment_source: "self";
+            /**
+             * @description Confirmed response mode; the model must preserve it.
+             * @enum {string}
+             */
+            interview_mode: "text" | "voice" | "camera" | "camera_screen";
+            /** @description Requested completed responses in the single self-recruited audience. */
+            target_count: number;
+            /** @description Optional name; blank or omitted lets the model propose one. */
+            name?: string;
+            /**
+             * @description Defaults to org for service accounts and private for users.
+             * @enum {string}
+             */
+            visibility?: "org" | "private";
+            /** @description Readable knowledge bases in the current environment; kb_0 is the default base. Context for this call only. */
+            knowledge_base_ids?: string[];
+            constraints?: components["schemas"]["StudyGenerationConstraints"];
+            /**
+             * @description Permit one critical clarification; false generates directly with assumptions. Ignored when brief is supplied; an unclear goal returns 422 PRECONDITION_FAILED.
+             * @default true
+             */
+            allow_clarification: boolean;
+            /** @description Answer to the previous question. Repeat original requirements and use a new Idempotency-Key. Exactly one option_id or nonblank answer is required. Never asks again. Included in the idempotency fingerprint. */
+            clarification?: {
+                question: components["schemas"]["StudyClarificationQuestion"];
+                /** @description ID in question.options; mutually exclusive with answer. */
+                option_id?: string;
+                /** @description Free answer only when question.allow_free_text is true; mutually exclusive with option_id. */
+                answer?: string;
+            } & (unknown | unknown);
+        };
+        StudyClarificationResult: {
+            /**
+             * @description No project has been created.
+             * @enum {string}
+             */
+            status: "needs_clarification";
+            question: components["schemas"]["StudyClarificationQuestion"];
+        };
+        /** @description Return this question unchanged with the clarification answer. */
+        StudyClarificationQuestion: {
+            /** @description The single decision needing clarification. */
+            text: string;
+            /** @description Whether the caller may answer with free text instead of an option. */
+            allow_free_text: boolean;
+            options: {
+                /** @description Unique option identifier; at most 100 UTF-8 bytes. */
+                id: string;
+                /** @description Human-readable answer; at most 1000 UTF-8 bytes. */
+                label: string;
+            }[];
+        };
+        StudyGenerateResult: {
+            /**
+             * @description The complete draft was created.
+             * @enum {string}
+             */
+            status: "created";
+            project: components["schemas"]["StudyProjectResult"];
+            draft: components["schemas"]["StudyDesignDraft"];
+            /** @description Committed draft revision. */
+            revision: string;
+            /** @description Temporary aliases mapped to committed IDs. */
+            created_id_map: {
+                [key: string]: string;
+            };
+            /** @description Nonblocking findings. TRANSLATION_NOT_QUEUED means the project was created but translations could not be queued; publication automatically generates missing translations. */
+            warnings: components["schemas"]["StudyWriteFinding"][];
+        };
+        StudyReviseRequest: {
+            /** @description One requested change to the current draft. */
+            instruction: string;
+            /** @description Current revision; a stale revision returns 409. */
+            expected_revision: string;
+            constraints?: components["schemas"]["StudyGenerationConstraints"];
+        };
+        StudyReviseResult: {
+            /** @description False means no changes were written. */
+            applied: boolean;
+            /** @description New revision when applied; unchanged revision otherwise. */
+            revision: string;
+            /** @description Concise explanation of an applied change. */
+            change_summary?: string;
+            /** @description Limitation and smaller supported suggestion when applied is false. */
+            message?: string;
+            /** @description Applied public command batch; empty on decline. New aliases resolve via created_id_map. */
+            edits: components["schemas"]["StudyWriteEdit"][];
+            change?: components["schemas"]["StudyDesignDraftChange"];
+            version_state?: components["schemas"]["StudyDraftVersionState"];
+            /** @description Committed alias mapping when applied. */
+            created_id_map?: {
+                [key: string]: string;
+            };
+            /** @description Nonblocking findings when applied. */
+            warnings?: components["schemas"]["StudyWriteFinding"][];
+        };
         /** @description Creates a Quantitative Study project with an empty draft and applies all supplied edits in one atomic batch. Retired quota commands and response_limit writes return 400 INVALID_ARGUMENT with details.reason COMMAND_NOT_AVAILABLE and details.path. */
         StudyCreateRequest: {
             /**
@@ -3281,7 +3596,7 @@ export interface components {
             /** @description Number of unique choice IDs to allocate; 1 through 50. */
             count: number;
         };
-        /** @description Updates project metadata. Omitted fields are unchanged. Design settings are edited with update_settings. */
+        /** @description Updates project metadata and live knowledge bindings. Omitted fields are unchanged. Design settings are edited with update_settings. */
         StudyUpdateRequest: {
             /** @description Replacement project name. */
             name?: string;
@@ -3292,6 +3607,8 @@ export interface components {
             visibility?: "org" | "private";
             /** @description Replacement study language; validated by the same project lifecycle and supported-language rules as the editor. */
             study_locale?: string;
+            /** @description Project-level knowledge bases from /platform/v2/knowledge_bases, readable by the caller in the project's environment. Use kb_0 for its default base. Omit to preserve the binding; [] clears it. Applies to newly started responses, including published projects, without a design revision. In-progress responses retain their starting binding. A binding read failure at response start proceeds without knowledge; project GET returns 503 when its binding read fails. If a PATCH updates metadata and bindings together, metadata may already be updated on partial failure; retry the request. Open-ended follow-ups search these bases using the question and current response (top_k 4, timeout 2 seconds), using the project creator's identity. Search failures fall back to the original prompt. Retrieved material is background only; its source must not be disclosed to respondents. */
+            knowledge_base_ids?: string[];
         };
         /** @description One validation finding from the complete candidate design or OpenAPI preflight. */
         StudyWriteFinding: {
@@ -3329,6 +3646,8 @@ export interface components {
         };
         /** @description Validation or lifecycle rejection. A rejected editing batch is not partially committed. */
         StudyWriteValidationDetails: {
+            /** @description JSON field path rejected with UNSUPPORTED_BY_API because the existing item uses a capability unavailable through this API. */
+            path?: string;
             /** @description Operation-specific rejection reason when present. */
             reason?: string;
             /** @description Validation findings. Error findings reject the entire batch; warning findings do not prevent a successful edit. */
@@ -4841,7 +5160,7 @@ export interface components {
             id?: string;
             /** Format: uri */
             url?: string;
-            events?: ("interview.completed" | "interview.incomplete" | "recruit.completed" | "report.ready" | "study.response.completed" | "study.recruitment.completed")[];
+            events?: ("interview.completed" | "interview.incomplete" | "recruit.completed" | "report.ready" | "study.response.completed" | "study.response.rejected" | "study.response.incomplete" | "study.recruitment.completed")[];
             /** @description 1=active, 0=disabled */
             status?: number;
             /** Format: unix-timestamp */
@@ -4861,10 +5180,10 @@ export interface components {
              *     filter on your side until you know what you want. Listing
              *     unknown events returns 400. Quantitative Study events are live-only. In-depth Interviews
              *     events apply to in_depth_interview projects (including existing in-depth interview projects);
-             *     Study projects use study.response.completed and study.recruitment.completed.
+             *     Study projects use study.response.completed, study.response.rejected, study.response.incomplete and study.recruitment.completed.
              *     study.report.ready is not available and cannot be subscribed to yet.
              */
-            events: ("interview.completed" | "interview.incomplete" | "recruit.completed" | "report.ready" | "study.response.completed" | "study.recruitment.completed")[];
+            events: ("interview.completed" | "interview.incomplete" | "recruit.completed" | "report.ready" | "study.response.completed" | "study.response.rejected" | "study.response.incomplete" | "study.recruitment.completed")[];
             /**
              * @description Optional caller-provided HMAC signing secret. If absent Trooly
              *     generates a random one.
@@ -4879,7 +5198,7 @@ export interface components {
             /** @description Stable event identifier, unchanged during retries and replay. */
             id: string;
             /** @enum {string} */
-            type: "interview.completed" | "interview.incomplete" | "recruit.completed" | "report.ready" | "study.response.completed" | "study.recruitment.completed";
+            type: "interview.completed" | "interview.incomplete" | "recruit.completed" | "report.ready" | "study.response.completed" | "study.response.rejected" | "study.response.incomplete" | "study.recruitment.completed";
             /** @description Event creation time in Unix seconds. */
             created: number;
             /** @example v1 */
@@ -4887,8 +5206,13 @@ export interface components {
             environment: string;
             /**
              * @description Event-specific resource IDs and attributes. All resource IDs are strings.
-             *     study.response.completed includes project_id and response_id (the interview ID),
-             *     after the response is accepted. study.recruitment.completed includes project_id
+             *     study.response.completed, study.response.rejected and study.response.incomplete include
+             *     project_id and response_id (the interview ID); completed fires after response acceptance,
+             *     rejected fires after a rejected review outcome, and incomplete follows the existing
+             *     abandonment event. Response events may include external_uid and params when a recruit
+             *     parameter snapshot exists.
+             *     In-depth Interview completion and incomplete events may likewise include
+             *     external_uid and params. study.recruitment.completed includes project_id
              *     and target_group_id when that group completes, including manual closure or
              *     reaching the study response limit; it does not guarantee that the group is full.
              *     Quantitative Study events use environment=live and the existing api_version=v1 envelope.
@@ -4990,6 +5314,8 @@ export interface components {
              * @enum {string}
              */
             visibility?: "private" | "org";
+            /** @description Live project-level knowledge base IDs from /platform/v2/knowledge_bases; kb_0 is the default base. Empty means no knowledge retrieval. Independent of draft and published design versions. */
+            knowledge_base_ids?: string[];
             /**
              * Format: int64
              * @description Project creation time in Unix seconds.
@@ -5175,6 +5501,8 @@ export interface components {
             concept?: components["schemas"]["StudyConceptPredicate"];
             /** @description Discriminator naming the selected payload field. Exactly that payload is present; tolerate future types when reading. */
             type?: string;
+            /** @description Uses a capability that is not available through this API. It is read-only here; edit it in the Trooly web app. */
+            readonly unsupported?: components["schemas"]["StudyUnsupportedValue"];
         } & ({
             /**
              * @description Answer predicate payload when type is answer.
@@ -5193,6 +5521,12 @@ export interface components {
              * @enum {string}
              */
             type: "concept";
+        } | {
+            /**
+             * @description Uses a capability that is not available through this API. It is read-only here; edit it in the Trooly web app.
+             * @enum {string}
+             */
+            type: "unsupported";
         } | unknown);
         /** @description A stimulus tested within a concept block; respondent text may reference its title and description. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
         StudyConcept: {
@@ -5454,6 +5788,8 @@ export interface components {
             statement?: components["schemas"]["StudyStatement"];
             /** @description Discriminator naming the selected payload field. Exactly that payload is present; tolerate future types when reading. */
             type?: string;
+            /** @description Uses a capability that is not available through this API. It is read-only here; edit it in the Trooly web app. */
+            readonly unsupported?: components["schemas"]["StudyUnsupportedValue"];
         } & ({
             /**
              * @description Question payload, present only when type is question.
@@ -5466,6 +5802,12 @@ export interface components {
              * @enum {string}
              */
             type: "statement";
+        } | {
+            /**
+             * @description Uses a capability that is not available through this API. It is read-only here; edit it in the Trooly web app.
+             * @enum {string}
+             */
+            type: "unsupported";
         } | unknown);
         /** @description One supported platform language, with researcher and native-language display names. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
         StudyLanguageOption: {
@@ -5562,6 +5904,8 @@ export interface components {
             interview_mode?: "text" | "voice" | "camera" | "camera_screen";
             /** @description Additional respondent languages using catalog codes; an empty list uses only study_locale. */
             participant_languages?: string[];
+            /** @description Submission-time review policy; defaults preserve standard machine review and existing human review behavior. Publish draft changes before they apply. */
+            review_policy?: components["schemas"]["StudyReviewPolicy"];
             /** @description Map from target language code to guidance applied to subsequent translations in that language. */
             translation_guidance?: {
                 [key: string]: string;
@@ -5705,6 +6049,8 @@ export interface components {
             text?: components["schemas"]["StudyTextSpec"];
             /** @description Discriminator naming the selected payload field. Exactly that payload is present; tolerate future types when reading. */
             type?: string;
+            /** @description Uses a capability that is not available through this API. It is read-only here; edit it in the Trooly web app. */
+            readonly unsupported?: components["schemas"]["StudyUnsupportedValue"];
         } & ({
             /**
              * @description Selection response definition, present only when type is choice.
@@ -5747,7 +6093,30 @@ export interface components {
              * @enum {string}
              */
             type: "number";
+        } | {
+            /**
+             * @description Uses a capability that is not available through this API. It is read-only here; edit it in the Trooly web app.
+             * @enum {string}
+             */
+            type: "unsupported";
         } | unknown);
+        /** @description Project review policy frozen when a response is submitted. Omitted values preserve existing behavior. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
+        StudyReviewPolicy: {
+            /** @description default preserves existing human review behavior; skip makes the machine verdict final. */
+            human_review?: string;
+            /** @description standard uses asynchronous machine review; fast finalizes synchronously without an LLM, and only clearly invalid responses are rejected. Both fast rules apply only to visible required questions, using each execution-plan item's required status; optional questions are ignored whether answered or skipped. Fast rejects duration below the count of visible answered required questions times minimum seconds (skipped required questions do not count; not applicable when that count is zero), or when every answered visible required text question has no Unicode letters/numbers or consists of at least three copies of one letter after removing whitespace. Repeated numbers and one- or two-character answers are allowed; one valid required text answer prevents text rejection, and no answered required text questions skips that rule. Sampled concept instances count separately by visibility and required status. A completeness guard rejects missing answers only for visible required questions that do not allow skipping. */
+            machine_review?: string;
+            /**
+             * Format: int32
+             * @description Optional standard machine review limit of 60-3600 seconds from finished_at. If no verdict is ready by the deadline, record unreviewed_pass (outcome pass). Invalid with fast review. Omitted preserves existing behavior; human review is unchanged.
+             */
+            machine_review_timeout_seconds?: number;
+            /**
+             * Format: int32
+             * @description Positive minimum seconds per visible answered required question for fast review; overrides interview_config.study_fast_review.min_seconds_per_question (default 3).
+             */
+            min_seconds_per_question?: number;
+        };
         /** @description A bounded numeric scale with required endpoints and an optional step. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
         StudyScaleSpec: {
             /** @description Required finite upper endpoint of the scale; must be greater than min. */
@@ -5844,6 +6213,8 @@ export interface components {
             /** @description Opaque identifier of the voice within its provider. */
             voice_id?: string;
         };
+        /** @description Uses a capability that is not available through this API. It is read-only here; edit it in the Trooly web app. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
+        StudyUnsupportedValue: Record<string, never>;
         /** @description A validation result with a stable machine-readable code and affected target. Errors reject the whole batch; warnings may accompany success. Unset optional fields and default-valued non-optional scalars are omitted. Within a present object, omitted non-optional booleans mean false and numbers mean zero; explicitly set optional zero values remain present. Unknown or unspecified enum values are omitted. Clients must tolerate additional fields and new enum or type values. */
         StudyValidationFinding: {
             /** @description Stable validation code identifying the violated rule or warning. */
@@ -6500,6 +6871,8 @@ export interface components {
             interview_mode?: "text" | "voice" | "camera" | "camera_screen";
             /** @description Additional respondent languages using catalog codes; an empty list uses only study_locale. */
             participant_languages?: string[];
+            /** @description Submission-time review policy; defaults preserve standard machine review and existing human review behavior. Publish draft changes before they apply. */
+            review_policy?: components["schemas"]["StudyWriteReviewPolicy"];
             /** @description Map from target language code to guidance applied to subsequent translations in that language. */
             translation_guidance?: {
                 [key: string]: string;
@@ -6736,6 +7109,23 @@ export interface components {
              */
             type: "number";
         });
+        /** @description Project review policy frozen when a response is submitted. Omitted values preserve existing behavior. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
+        StudyWriteReviewPolicy: {
+            /** @description default preserves existing human review behavior; skip makes the machine verdict final. */
+            human_review?: string;
+            /** @description standard uses asynchronous machine review; fast finalizes synchronously without an LLM, and only clearly invalid responses are rejected. Both fast rules apply only to visible required questions, using each execution-plan item's required status; optional questions are ignored whether answered or skipped. Fast rejects duration below the count of visible answered required questions times minimum seconds (skipped required questions do not count; not applicable when that count is zero), or when every answered visible required text question has no Unicode letters/numbers or consists of at least three copies of one letter after removing whitespace. Repeated numbers and one- or two-character answers are allowed; one valid required text answer prevents text rejection, and no answered required text questions skips that rule. Sampled concept instances count separately by visibility and required status. A completeness guard rejects missing answers only for visible required questions that do not allow skipping. */
+            machine_review?: string;
+            /**
+             * Format: int32
+             * @description Optional standard machine review limit of 60-3600 seconds from finished_at. If no verdict is ready by the deadline, record unreviewed_pass (outcome pass). Invalid with fast review. Omitted preserves existing behavior; human review is unchanged.
+             */
+            machine_review_timeout_seconds?: number;
+            /**
+             * Format: int32
+             * @description Positive minimum seconds per visible answered required question for fast review; overrides interview_config.study_fast_review.min_seconds_per_question (default 3).
+             */
+            min_seconds_per_question?: number;
+        };
         /** @description Request to revoke a share link. Path identifiers and authenticated identity are supplied by the API. Use snake_case fields. IDs and 64-bit integers are strings. Unknown fields, null, and numeric 64-bit integers are rejected. */
         StudyWriteRevokeShareLinkReq: Record<string, never>;
         /** @description One matrix-row upsert, move or delete operation selected by type. Use snake_case fields, lowercase enum names and type plus its matching payload for unions. Omitted fields are unset; null, unknown fields, unknown enum values and read-only fields are rejected. */
@@ -7186,6 +7576,8 @@ export interface components {
         };
         /** @description Clause from the existing Quantitative Study product read view. Unset non-optional scalar defaults are omitted; omitted booleans mean false and numbers mean zero. All 64-bit values are decimal strings. */
         StudyReadClause: {
+            /** @description Uses a capability that is not available through this API. It is read-only here; edit it in the Trooly web app. */
+            readonly unsupported?: components["schemas"]["StudyUnsupportedValue"];
             /** @description answer in the Clause read view. */
             answer?: components["schemas"]["StudyReadAnswerPredicate"];
             /** @description audience in the Clause read view. */
@@ -7194,7 +7586,22 @@ export interface components {
             concept?: components["schemas"]["StudyReadConceptPredicate"];
             /** @description Name of the selected oneof payload field. */
             type?: string;
-        };
+        } & ({
+            /** @enum {string} */
+            type: "answer";
+        } | {
+            /** @enum {string} */
+            type: "audience";
+        } | {
+            /** @enum {string} */
+            type: "concept";
+        } | {
+            /**
+             * @description Uses a capability that is not available through this API. It is read-only here; edit it in the Trooly web app.
+             * @enum {string}
+             */
+            type: "unsupported";
+        } | unknown);
         /** @description Concept from the existing Quantitative Study product read view. Unset non-optional scalar defaults are omitted; omitted booleans mean false and numbers mean zero. All 64-bit values are decimal strings. */
         StudyReadConcept: {
             /** @description asset ids in the Concept read view. */
@@ -7328,13 +7735,27 @@ export interface components {
         };
         /** @description Item from the existing Quantitative Study product read view. Unset non-optional scalar defaults are omitted; omitted booleans mean false and numbers mean zero. All 64-bit values are decimal strings. */
         StudyReadItem: {
+            /** @description Uses a capability that is not available through this API. It is read-only here; edit it in the Trooly web app. */
+            readonly unsupported?: components["schemas"]["StudyUnsupportedValue"];
             /** @description question in the Item read view. */
             question?: components["schemas"]["StudyReadQuestion"];
             /** @description statement in the Item read view. */
             statement?: components["schemas"]["StudyReadStatement"];
             /** @description Name of the selected oneof payload field. */
             type?: string;
-        };
+        } & ({
+            /** @enum {string} */
+            type: "question";
+        } | {
+            /** @enum {string} */
+            type: "statement";
+        } | {
+            /**
+             * @description Uses a capability that is not available through this API. It is read-only here; edit it in the Trooly web app.
+             * @enum {string}
+             */
+            type: "unsupported";
+        } | unknown);
         /** @description MatrixRow from the existing Quantitative Study product read view. Unset non-optional scalar defaults are omitted; omitted booleans mean false and numbers mean zero. All 64-bit values are decimal strings. */
         StudyReadMatrixRow: {
             /** @description Opaque identifier; preserve the exact string without numeric conversion. */
@@ -7495,6 +7916,8 @@ export interface components {
             link?: string;
             /** @description China-region channel participant link, returned unchanged from the backend in GET audiences and the single-audience PATCH response. The Study product uses this regional link directly, without the overseas open-recruitment /q/ rewrite. Omitted when empty. */
             link_cn?: string;
+            /** @description Read-only recruitment link parameter settings for this channel. Unconfigured channels return `version` as `"0"`. */
+            readonly link_settings?: components["schemas"]["StudyReadRecruitLinkSettings"];
             /** @description Recruitment channel title. */
             name?: string;
             /** @description Opaque identifier; preserve the exact string without numeric conversion. */
@@ -7577,6 +8000,8 @@ export interface components {
         };
         /** @description ResponseSpec from the existing Quantitative Study product read view. Unset non-optional scalar defaults are omitted; omitted booleans mean false and numbers mean zero. All 64-bit values are decimal strings. */
         StudyReadResponseSpec: {
+            /** @description Uses a capability that is not available through this API. It is read-only here; edit it in the Trooly web app. */
+            readonly unsupported?: components["schemas"]["StudyUnsupportedValue"];
             /** @description choice in the ResponseSpec read view. */
             choice?: components["schemas"]["StudyReadChoiceSpec"];
             /** @description file upload in the ResponseSpec read view. */
@@ -7593,7 +8018,34 @@ export interface components {
             text?: components["schemas"]["StudyReadTextSpec"];
             /** @description Name of the selected oneof payload field. */
             type?: string;
-        };
+        } & ({
+            /** @enum {string} */
+            type: "choice";
+        } | {
+            /** @enum {string} */
+            type: "text";
+        } | {
+            /** @enum {string} */
+            type: "ranking";
+        } | {
+            /** @enum {string} */
+            type: "file_upload";
+        } | {
+            /** @enum {string} */
+            type: "matrix";
+        } | {
+            /** @enum {string} */
+            type: "scale";
+        } | {
+            /** @enum {string} */
+            type: "number";
+        } | {
+            /**
+             * @description Uses a capability that is not available through this API. It is read-only here; edit it in the Trooly web app.
+             * @enum {string}
+             */
+            type: "unsupported";
+        } | unknown);
         /** @description ScaleSpec from the existing Quantitative Study product read view. Unset non-optional scalar defaults are omitted; omitted booleans mean false and numbers mean zero. All 64-bit values are decimal strings. */
         StudyReadScaleSpec: {
             /** @description max in the ScaleSpec read view. */
@@ -7633,6 +8085,99 @@ export interface components {
             text_answer?: string;
             /** @description Persisted screening question type. */
             type?: string;
+        };
+        StudyReadRecruitLinkParameter: {
+            /** @description Parameter name using 1–64 ASCII letters, digits or underscores; reserved names cannot be used. */
+            name: string;
+            /**
+             * @description `fixed` attaches a channel-wide default value; `individual` requires a per-link value at generation or in the URL.
+             * @enum {string}
+             */
+            mode: "fixed" | "individual";
+            /** @description Non-empty UTF-8 value when `mode` is `fixed`; omitted when `mode` is `individual`. */
+            value?: string;
+        };
+        /** @description Recruitment link parameter settings for a channel. All 64-bit counters (`version`, `generated_count`) are decimal strings; unconfigured channels have `version` `"0"`. */
+        StudyReadRecruitLinkSettings: {
+            /** @description Declared custom link parameters (at most 10). */
+            parameters: components["schemas"]["StudyReadRecruitLinkParameter"][];
+            /** @description When true, respondents must enter through a signed link carrying an `individual` identity parameter, and each identity can submit at most once. */
+            one_response_per_person: boolean;
+            /** @description Name of the `individual` parameter that identifies each respondent; omitted when unset. */
+            identity_parameter?: string;
+            /** @description True once a respondent has joined with a captured identity; `identity_parameter` can no longer be changed or removed. */
+            readonly identity_locked: boolean;
+            /** @description Optimistic concurrency version as a non-negative decimal string (`"0"` when unconfigured). */
+            readonly version: string;
+            /** @description Total number of distributable short links generated for this channel (`short_link=true`), as a non-negative decimal string. On-demand links generated with `short_link=false` are not counted. */
+            readonly generated_count: string;
+            /** @description Optional QR code caption (at most 30 characters); omitted when empty. */
+            qr_caption?: string;
+        };
+        /** @description Replace recruitment link settings for a self-recruitment channel. Read-only fields (`version`, `identity_locked`, `generated_count`) are rejected with 400. */
+        StudyUpdateRecruitLinkSettingsRequest: {
+            /** @description Declared custom link parameters (at most 10). Omit or send `[]` to clear unlocked parameters. */
+            parameters?: components["schemas"]["StudyReadRecruitLinkParameter"][];
+            /** @description Require signed links and enforce at most one response per `identity_parameter` value. */
+            one_response_per_person?: boolean;
+            /** @description Name of the `individual` parameter used as `external_uid` and for deduplication. */
+            identity_parameter?: string;
+            /** @description Optional QR code caption (at most 30 Unicode characters). */
+            qr_caption?: string;
+            /** @description Required optimistic concurrency version from `link_settings.version` (`"0"` when unconfigured). Version mismatches return 409 CONFLICT. */
+            expected_version: string;
+            /**
+             * @description Must be `true` when transitioning `one_response_per_person` from `false` to `true`, confirming that existing unsigned links stop working.
+             * @default false
+             */
+            confirm_invalidate_unsigned_links: boolean;
+        };
+        /** @description Supply exactly one of uids or count. */
+        StudyGenerateRecruitLinksRequest: {
+            /** @description External customer IDs for explicit link generation; each must be at most 255 bytes. Each UID supplies the selected identity parameter. Mutually exclusive with count. */
+            uids?: string[];
+            /** @description Number of links to generate. The selected identity parameter and individual parameters omitted from params receive unique random values. Mutually exclusive with uids. */
+            count?: number;
+            /** @description Values shared by every link in this batch. Every key must be declared in this recruitment task's link settings; unknown keys return 400. In `uids` mode, only the selected identity parameter is required (supplied via `uids`); other `individual` parameters are optional (omitted or `""` is treated as omitted, excluded from the signature and captured snapshot so questions render their fallback default text). In `count` mode, omitted `individual` parameters are generated uniquely at random. */
+            params?: {
+                [key: string]: string;
+            };
+            /**
+             * @description Whether to create a short link (`short_url`) for each generated URL. Defaults to `true`. When `false` (for on-demand issuance), short-link creation is skipped, `short_url` is omitted, `url` is returned, and `generated_count` is not incremented.
+             * @default true
+             */
+            short_link: boolean;
+        };
+        StudyGeneratedRecruitLink: {
+            /** @description External customer ID in uids mode; generated identity value in count mode. */
+            uid: string;
+            /**
+             * Format: uri
+             * @description Short bearer link resolving to the signed URL. Omitted when `short_link` is `false`. When enabled, the same UID and parameters return the same short URL.
+             */
+            short_url?: string;
+            /**
+             * Format: uri
+             * @description Deterministically signed Respond URL for these parameter values. Treat as a bearer link; changing settings or params creates a new URL, while previously signed URLs remain valid.
+             */
+            url: string;
+        };
+        StudyRecruitRecord: {
+            id?: string;
+            project_id?: string;
+            participant?: {
+                /** @description External customer ID supplied for the participant. */
+                uid?: string;
+            };
+            /** @description Persisted custom parameter snapshot, when present. */
+            params?: {
+                [key: string]: string;
+            };
+            interview_id?: string;
+            /** Format: int64 */
+            created_at?: number;
+            /** Format: int64 */
+            updated_at?: number;
         };
         /** @description ScreenedOutRecruitItem from the existing Quantitative Study product read view. Unset non-optional scalar defaults are omitted; omitted booleans mean false and numbers mean zero. Absolute timestamps are RFC3339 UTC strings; other 64-bit values are decimal strings. */
         StudyReadScreenedOutRecruitItem: {
@@ -8256,6 +8801,8 @@ export interface components {
             fraud_level?: string;
             /** @description Persisted machine-review outcome. */
             outcome?: string;
+            /** @description Participant profile availability: available, not_found, or unavailable; omitted for historical or unrecorded results. */
+            participant_profile_status?: string;
             /** @description Machine-review quality level, including excellent, good, fair, low or not_assessed. */
             quality_level?: string;
             /** @description Server-provided explanation of this state or result. */
@@ -8508,6 +9055,13 @@ export interface components {
         };
         /** @description Get Quant Response Resp. Read-only product projection. Default-valued non-optional fields and empty collections may be omitted; explicit optional zero values are preserved. A has_* flag distinguishes unknown values from measured zero. All 64-bit integers are strings. */
         StudyReadGetQuantResponseResp: {
+            /** @description Distinguishing respondent identifier captured from the recruitment link snapshot; omitted when absent. */
+            external_uid?: string;
+            /** @description Declared recruitment link parameter snapshot captured on admission; omitted when empty. */
+            params?: {
+                [key: string]: string;
+            };
+            review?: components["schemas"]["StudyResponseReview"];
             /** @description Recorded answers keyed by stable question column ID, or ordered answer details. Concept-instance keys combine item_id and concept_id. */
             answers?: components["schemas"]["StudyReadQuantAnswerDetail"][];
             /** @description True when quant_review is available, including a valid zero. Missing or false means unavailable. */
@@ -9140,6 +9694,8 @@ export interface components {
         };
         /** @description Quant Report Evidence Selector. Read-only product projection. Default-valued non-optional fields and empty collections may be omitted; explicit optional zero values are preserved. A has_* flag distinguishes unknown values from measured zero. All 64-bit integers are strings. */
         StudyReadQuantReportEvidenceSelector: {
+            /** @description Uses a capability that is not available through this API. It is read-only here; edit it in the Trooly web app. */
+            readonly unsupported?: components["schemas"]["StudyUnsupportedValue"];
             /** @description Exact option id identifier as a string. Preserve its value without numeric conversion. */
             option_id?: string;
             /** @description Recorded theme key for this product result. */
@@ -9152,6 +9708,12 @@ export interface components {
         } | {
             /** @enum {string} */
             type: "theme_key";
+        } | {
+            /**
+             * @description Uses a capability that is not available through this API. It is read-only here; edit it in the Trooly web app.
+             * @enum {string}
+             */
+            type: "unsupported";
         } | unknown);
         /** @description Quant Report Meta. Read-only product projection. Default-valued non-optional fields and empty collections may be omitted; explicit optional zero values are preserved. A has_* flag distinguishes unknown values from measured zero. All 64-bit integers are strings. */
         StudyReadQuantReportMeta: {
@@ -9359,6 +9921,7 @@ export interface components {
         };
         /** @description Quant Response Row. Read-only product projection. Default-valued non-optional fields and empty collections may be omitted; explicit optional zero values are preserved. A has_* flag distinguishes unknown values from measured zero. All 64-bit integers are strings. */
         StudyReadQuantResponseRow: {
+            review?: components["schemas"]["StudyResponseReview"];
             /** @description Active interview duration in milliseconds, encoded as a decimal string; use has_active_time_ms to distinguish unavailable from zero. */
             active_time_ms?: string;
             /**
@@ -9452,6 +10015,8 @@ export interface components {
             fraud_level?: string;
             /** @description Persisted machine-review outcome. */
             outcome?: string;
+            /** @description Participant profile availability: available, not_found, or unavailable; omitted for historical or unrecorded results. */
+            participant_profile_status?: string;
             /** @description Machine-review quality level, including excellent, good, fair, low or not_assessed. */
             quality_level?: string;
             /** @description Server-provided explanation of this state or result. */
@@ -9727,6 +10292,17 @@ export interface components {
         };
         /** @description Metadata only: excludes participant PII, generated summaries, labels, scores and review reasons. */
         StudyOriginalInterviewSummary: {
+            /** @description Distinguishing respondent identifier captured from the recruitment link snapshot; omitted when absent. */
+            external_uid?: string;
+            /** @description Declared recruitment link parameter snapshot captured on admission; omitted when empty. */
+            params?: {
+                [key: string]: string;
+            };
+            /** @description Status derived from the existing source metadata. Review stage and decision time are not returned here. */
+            review?: {
+                /** @enum {string} */
+                status: "pending" | "approved" | "rejected";
+            };
             /** @description Interview identifier. */
             interview_id: string;
             /** @description Actual owning project identifier. */
@@ -12778,6 +13354,244 @@ export interface operations {
             500: components["responses"]["InternalError"];
         };
     };
+    studyGenerateProject: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Optional environment confirmation: live or sbx_ID. Omit to use the API key's bound environment. A value different from that environment returns 400 ENVIRONMENT_MISMATCH; this header cannot switch environments. */
+                "Trooly-Environment"?: components["parameters"]["TroolyEnvironment"];
+                /** @description Required request key. Reuse only for identical retries; use a new key for a clarification answer. */
+                "Idempotency-Key": string;
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudyGenerateRequest"];
+            };
+        };
+        responses: {
+            /** @description A single clarification question. No project was created. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"] & {
+                        data?: components["schemas"]["StudyClarificationResult"];
+                    };
+                };
+            };
+            /** @description Created a complete Study draft; review before publishing. */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"] & {
+                        data?: components["schemas"]["StudyGenerateResult"];
+                    };
+                };
+            };
+            /** @description INVALID_ARGUMENT: invalid fields or missing Idempotency-Key. Field validation errors include details.path, including brief fields and participant_languages indices. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing permission or Study disabled. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Knowledge resource inaccessible. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Idempotent request still running. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Unsupported request or idempotency key reused with a changed body. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limited. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SANDBOX_NOT_IMPLEMENTED. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Required service unavailable or generation failed after two corrections. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
+    studyReviseDraft: {
+        parameters: {
+            query?: never;
+            header: {
+                /** @description Optional environment confirmation: live or sbx_ID. Omit to use the API key's bound environment. A value different from that environment returns 400 ENVIRONMENT_MISMATCH; this header cannot switch environments. */
+                "Trooly-Environment"?: components["parameters"]["TroolyEnvironment"];
+                /** @description Required request key; reuse only for identical retries. */
+                "Idempotency-Key": string;
+            };
+            path: {
+                /** @description Authorized Study project identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudyReviseRequest"];
+            };
+        };
+        responses: {
+            /** @description Applied edit receipt or applied=false with unchanged revision and a suggestion. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"] & {
+                        data?: components["schemas"]["StudyReviseResult"];
+                    };
+                };
+            };
+            /** @description Invalid request or missing Idempotency-Key. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Authentication required. */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Missing permission or Study disabled. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Project or draft inaccessible. */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Stale revision or idempotent request in flight. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["StudyWriteConflictResponse"];
+                };
+            };
+            /** @description Not a Study or idempotency key reused with a changed body. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Rate limited. */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SANDBOX_NOT_IMPLEMENTED. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description Required service unavailable. */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+        };
+    };
     studyListProjects: {
         parameters: {
             query?: {
@@ -13647,7 +14461,7 @@ export interface operations {
                     "application/json": components["schemas"]["StudyWriteConflictResponse"];
                 };
             };
-            /** @description PRECONDITION_FAILED: validation or lifecycle rejection. IDEMPOTENCY_KEY_REUSED: retry key reused for a different request. */
+            /** @description PRECONDITION_FAILED: validation or lifecycle rejection. IDEMPOTENCY_KEY_REUSED: retry key reused for a different request. UNSUPPORTED_BY_API: replacing an unsupported item or updating its union path; error.details.path identifies the field. */
             422: {
                 headers: {
                     [name: string]: unknown;
@@ -15049,6 +15863,242 @@ export interface operations {
             503: components["responses"]["Unavailable"];
         };
     };
+    studyListRecruitRecords: {
+        parameters: {
+            query?: {
+                /** @description Filter by the external customer ID supplied when generating the link. */
+                uid?: string;
+                /** @description Opaque decimal continuation cursor; omit for the first page. */
+                cursor?: string;
+                limit?: number;
+            };
+            header?: {
+                /** @description Optional environment confirmation: live or sbx_ID. Omit to use the API key's bound environment. A value different from that environment returns 400 ENVIRONMENT_MISMATCH; this header cannot switch environments. */
+                "Trooly-Environment"?: components["parameters"]["TroolyEnvironment"];
+            };
+            path: {
+                /** @description Quantitative Study project identifier. */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description OK */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"] & {
+                        data?: components["schemas"]["StudyRecruitRecord"][];
+                        meta?: {
+                            /** @description Opaque continuation cursor; omitted after the final page. */
+                            next_cursor?: string;
+                        };
+                    };
+                };
+            };
+            400: components["responses"]["BadRequest"];
+            401: components["responses"]["Unauthorized"];
+            /** @description FORBIDDEN when Quantitative Study access is disabled or the caller lacks access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description PRECONDITION_FAILED for a non-Quantitative Study project. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SANDBOX_NOT_IMPLEMENTED; Quantitative Study is live-only. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    studyUpdateRecruitLinkSettings: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional environment confirmation: live or sbx_ID. Omit to use the API key's bound environment. A value different from that environment returns 400 ENVIRONMENT_MISMATCH; this header cannot switch environments. */
+                "Trooly-Environment"?: components["parameters"]["TroolyEnvironment"];
+            };
+            path: {
+                /** @description Quantitative Study project identifier. */
+                id: string;
+                /** @description Recruitment task ID or public_id. */
+                recruit: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudyUpdateRecruitLinkSettingsRequest"];
+            };
+        };
+        responses: {
+            /** @description Updated recruitment link settings, including the incremented `version`. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"] & {
+                        data?: components["schemas"]["StudyReadRecruitLinkSettings"];
+                    };
+                };
+            };
+            /** @description INVALID_ARGUMENT for malformed input, unknown or read-only fields (`version`, `identity_locked`, `generated_count`), missing `expected_version`, invalid or reserved parameter names, more than 10 parameters, or invalid parameter values. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description FORBIDDEN or PERMISSION_DENIED for missing trooly.project.write or unavailable Quantitative Study access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description CONFLICT when `expected_version` does not match the current version, or when `identity_locked` is true and the request changes or removes `identity_parameter`. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description PRECONDITION_FAILED when enabling `one_response_per_person` without `confirm_invalidate_unsigned_links=true` (`details.reason=CONFIRM_INVALIDATE_UNSIGNED_LINKS_REQUIRED`), or for an incompatible project type. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            429: components["responses"]["RateLimited"];
+            /** @description SANDBOX_NOT_IMPLEMENTED; Quantitative Study is live-only. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
+    studyGenerateRecruitLinks: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Optional environment confirmation: live or sbx_ID. Omit to use the API key's bound environment. A value different from that environment returns 400 ENVIRONMENT_MISMATCH; this header cannot switch environments. */
+                "Trooly-Environment"?: components["parameters"]["TroolyEnvironment"];
+            };
+            path: {
+                /** @description Quantitative Study project identifier. */
+                id: string;
+                /** @description Recruitment task ID or public_id. */
+                recruit: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["StudyGenerateRecruitLinksRequest"];
+            };
+        };
+        responses: {
+            /** @description Signed links generated for the requested UIDs or count. For UID mode, identical UIDs and generation parameters produce identical URLs; count mode generates fresh random identities. */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SuccessResponse"] & {
+                        data?: {
+                            links: components["schemas"]["StudyGeneratedRecruitLink"][];
+                        };
+                    };
+                };
+            };
+            /** @description INVALID_ARGUMENT for malformed input, an undeclared parameter, invalid parameter names or values, invalid batch size, or invalid parameter configuration. Only fields declared in this recruitment task's link settings are accepted. Names use letters, digits or underscores and are 1–64 characters; reserved names cannot be used. Values must be valid UTF-8 and at most 2048 bytes. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            401: components["responses"]["Unauthorized"];
+            /** @description FORBIDDEN or PERMISSION_DENIED for missing trooly.project.write or unavailable Quantitative Study access. */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            404: components["responses"]["NotFound"];
+            /** @description CONFLICT with a distinct message when recruitment is paused (`recruitment is paused`), closed (`recruitment is closed`), full (`recruitment is full`), or its state prevents link generation. */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description PRECONDITION_FAILED for an incompatible project or recruitment state. */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            /** @description SANDBOX_NOT_IMPLEMENTED; Quantitative Study is live-only. */
+            501: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorResponse"];
+                };
+            };
+            503: components["responses"]["Unavailable"];
+        };
+    };
     studyListClips: {
         parameters: {
             query?: {
@@ -15990,6 +17040,8 @@ export interface operations {
     studyListStudyResponses: {
         parameters: {
             query?: {
+                /** @description Exact distinguishing respondent identifier captured from a recruitment link. Applied before pagination. */
+                external_uid?: string;
                 /** @description Defaults to completed. OR within the filter; AND with all other filters. */
                 status?: ("in_progress" | "completed" | "incomplete" | "rejected" | "fraudulent" | "unknown")[];
                 /** @description Saved review dispositions; no evaluation or model call. */
