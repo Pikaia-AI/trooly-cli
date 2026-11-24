@@ -32,11 +32,18 @@ For a qualitative project, list interviews and read their existing transcript:
 `trooly interview get <interview-id> --json`
 Inspect the returned structure before processing it; do not invent fields.
 
-## Upload a knowledge document
+## Knowledge documents
 
 `trooly kb list --all --json`
 `trooly doc upload notes.md --kb <knowledge-base-id> --wait --json`
+`trooly doc download <document-id> -o notes.md`
 `trooly knowledge search "research findings" --kb <knowledge-base-id> --json`
+
+Knowledge document permissions are orthogonal:
+- `platform.knowledge_doc.read`: list, get, search, and online preview (Owner, Admin, Member, Viewer, and read-only API keys).
+- `platform.knowledge_doc.download`: explicit document download via `trooly doc download` / `GET /platform/v2/documents/{doc}/download` (Owner, Admin, and Member; not Viewer or read-only API keys).
+- `platform.knowledge_doc.write`: upload, update, retry, and delete own documents (Owner and Admin only; not Member, Viewer, or read-only API keys).
+- `platform.knowledge_doc.manage`: manage any document in the environment (Owner and Admin).
 
 ## Inspect usage
 

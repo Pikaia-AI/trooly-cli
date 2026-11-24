@@ -59,6 +59,22 @@ const document: OpenApiDocument = {
     '/trooly/v1/interviews': {
       get: { operationId: 'listTranscripts', tags: ['interviews'], summary: 'Read transcripts' },
     },
+    '/platform/v2/documents/{doc}/download': {
+      get: {
+        operationId: 'getDocumentDownload',
+        tags: ['knowledge'],
+        summary: 'Get a document download URL',
+        'x-required-permission': 'platform.knowledge_doc.download',
+      },
+    },
+    '/platform/v2/documents/uploads': {
+      post: {
+        operationId: 'createDocumentUpload',
+        tags: ['knowledge'],
+        summary: 'Request a document upload',
+        'x-required-permission': 'platform.knowledge_doc.write',
+      },
+    },
   },
   components: {
     schemas: {
@@ -515,6 +531,26 @@ describe('pagination and discovery', () => {
       send(res, 400, { error: { code: 'INVALID_ARGUMENT', message: 'Invalid' } });
     expect(await run('api', 'GET', '/trooly/v1/projects', '--json')).toBe(1);
     expect(JSON.parse(errors.join('')).error.message).toContain('trooly api describe listProjects');
+  });
+  it('surfaces platform.knowledge_doc.download and platform.knowledge_doc.write in describe and 403 hints', async () => {
+    expect(await run('api', 'describe', 'GET', '/platform/v2/documents/{doc}/download')).toBe(0);
+    expect(output.join('')).toContain('Required permission: platform.knowledge_doc.download');
+    output = [];
+    expect(await run('api', 'describe', 'POST', '/platform/v2/documents/uploads')).toBe(0);
+    expect(output.join('')).toContain('Required permission: platform.knowledge_doc.write');
+
+    respond = (_req, res) =>
+      send(res, 403, { error: { code: 'PERMISSION_DENIED', message: 'Denied' } });
+    expect(await run('api', 'GET', '/platform/v2/documents/doc_1/download', '--json')).toBe(4);
+    expect(JSON.parse(errors.join('')).error.message).toContain(
+      'Required permission: platform.knowledge_doc.download.',
+    );
+
+    errors = [];
+    expect(await run('api', 'POST', '/platform/v2/documents/uploads', '--json')).toBe(4);
+    expect(JSON.parse(errors.join('')).error.message).toContain(
+      'Required permission: platform.knowledge_doc.write.',
+    );
   });
   it('renders help, guide and usage errors without network calls', async () => {
     expect(await run('--help')).toBe(0);

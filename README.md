@@ -114,6 +114,13 @@ Run a command with `--help` for its options. Lists support `--limit`, `--cursor`
 
 By default, output is a table or readable object. `--json` writes the API's `data` value with the original field names. Pagination combines pages into one array. Errors and advisory notices go to stderr, leaving stdout suitable for pipelines. IDs should be kept as strings.
 
+Knowledge document permissions are orthogonal:
+
+- `platform.knowledge_doc.read`: list, get, search, and online preview (`Owner`, `Admin`, `Member`, `Viewer`, and read-only API keys).
+- `platform.knowledge_doc.download`: explicit document download via `trooly doc download` (`GET /platform/v2/documents/{doc}/download`), granted to `Owner`, `Admin`, and `Member` (not `Viewer` and not read-only API keys).
+- `platform.knowledge_doc.write`: upload, update, retry, and delete own documents (`Owner` and `Admin` only; not `Member`, `Viewer`, or read-only API keys).
+- `platform.knowledge_doc.manage`: manage any document in the environment (`Owner` and `Admin`).
+
 ## Any API operation and interface discovery
 
 Use `trooly api` for operations without a dedicated command:

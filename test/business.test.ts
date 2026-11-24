@@ -473,3 +473,138 @@ it('preserves the whole draft-version object when --all is absent', async () => 
   await run(['study', 'draft', 'versions', '1']);
   expect(JSON.parse(stdout.join(''))).toEqual(data);
 });
+
+describe('knowledge document RBAC help and permission hints', () => {
+  function helpText(subcommand?: string): string {
+    const program = new Command().exitOverride();
+    registerBusiness(program);
+    const doc = program.commands.find((command) => command.name() === 'doc')!;
+    const target = subcommand
+      ? doc.commands.find((command) => command.name() === subcommand)!
+      : doc;
+    const chunks: string[] = [];
+    target
+      .configureOutput({
+        writeOut: (text) => {
+          chunks.push(text);
+        },
+      })
+      .outputHelp();
+    return chunks.join('');
+  }
+
+  it('documents four-action orthogonal knowledge document permissions in doc help', () => {
+    const groupHelp = helpText();
+    expect(groupHelp).toContain('platform.knowledge_doc.read');
+    expect(groupHelp).toContain('online preview');
+    expect(groupHelp).toContain('platform.knowledge_doc.download');
+    expect(groupHelp).toContain('GET /platform/v2/documents/{doc}/download');
+    expect(groupHelp).toContain('Owner, Admin, and Member; not Viewer or read-only API keys');
+    expect(groupHelp).toContain('platform.knowledge_doc.write');
+    expect(groupHelp).toContain('Owner and Admin only; not Member, Viewer, or read-only API keys');
+    expect(groupHelp).toContain('platform.knowledge_doc.manage');
+
+    const downloadHelp = helpText('download');
+    expect(downloadHelp).toContain('Required permission: platform.knowledge_doc.download');
+    expect(downloadHelp).toContain('Owner, Admin, and Member; not Viewer or read-only API keys');
+    expect(downloadHelp).toContain('Online preview remains under platform.knowledge_doc.read');
+
+    const uploadHelp = helpText('upload');
+    expect(uploadHelp).toContain('Required permission: platform.knowledge_doc.write');
+    expect(uploadHelp).toContain('Owner and Admin only; not Member, Viewer, or read-only API keys');
+
+    for (const subcommand of ['list', 'get']) {
+      const readHelp = helpText(subcommand);
+      expect(readHelp).toContain('Required permission: platform.knowledge_doc.read');
+      expect(readHelp).toContain('Viewer, and read-only API keys');
+    }
+
+    for (const subcommand of ['delete', 'retry']) {
+      const mutateHelp = helpText(subcommand);
+      expect(mutateHelp).toContain('platform.knowledge_doc.write');
+      expect(mutateHelp).toContain(
+        'Owner and Admin only; not Member, Viewer, or read-only API keys',
+      );
+    }
+  });
+
+  it('adds platform.knowledge_doc.download hint on 403 PERMISSION_DENIED for doc download', async () => {
+    respond = (_request, response) => {
+      response.writeHead(403, { 'Content-Type': 'application/json' });
+      response.end(
+        JSON.stringify({
+          error: { code: 'PERMISSION_DENIED', message: 'Forbidden' },
+        }),
+      );
+    };
+    const error = await run(['doc', 'download', 'doc_1', '-o', join(directory, 'doc.pdf')]).catch(
+      (caught: unknown) => caught,
+    );
+    expect(error).toBeInstanceOf(CliError);
+    expect(error).toMatchObject({ exitCode: 4, code: 'PERMISSION_DENIED' });
+    expect((error as CliError).message).toContain(
+      'Required permission: platform.knowledge_doc.download.',
+    );
+  });
+
+  it('does not duplicate or misattribute doc download 403 hints', async () => {
+    respond = (_request, response) => {
+      response.writeHead(403, { 'Content-Type': 'application/json' });
+      response.end(
+        JSON.stringify({
+          error: {
+            code: 'PERMISSION_DENIED',
+            message: 'Missing platform.knowledge_doc.download permission.',
+          },
+        }),
+      );
+    };
+    const duplicate = (await run([
+      'doc',
+      'download',
+      'doc_1',
+      '-o',
+      join(directory, 'doc.pdf'),
+    ]).catch((caught: unknown) => caught)) as CliError;
+    expect(duplicate.message.match(/platform\.knowledge_doc\.download/g)).toHaveLength(1);
+
+    respond = (_request, response) => {
+      response.writeHead(403, { 'Content-Type': 'application/json' });
+      response.end(
+        JSON.stringify({
+          error: { code: 'ENVIRONMENT_MISMATCH', message: 'Wrong environment.' },
+        }),
+      );
+    };
+    const envError = (await run([
+      'doc',
+      'download',
+      'doc_1',
+      '-o',
+      join(directory, 'doc.pdf'),
+    ]).catch((caught: unknown) => caught)) as CliError;
+    expect(envError.exitCode).toBe(4);
+    expect(envError.message).not.toContain('platform.knowledge_doc.download');
+  });
+
+  it('adds platform.knowledge_doc.write hint on 403 PERMISSION_DENIED for doc upload', async () => {
+    const source = join(directory, 'notes.md');
+    await writeFile(source, 'sample');
+    respond = (_request, response) => {
+      response.writeHead(403, { 'Content-Type': 'application/json' });
+      response.end(
+        JSON.stringify({
+          error: { code: 'PERMISSION_DENIED', message: 'Members cannot upload documents.' },
+        }),
+      );
+    };
+    const error = await run(['doc', 'upload', source, '--kb', 'kb_1']).catch(
+      (caught: unknown) => caught,
+    );
+    expect(error).toBeInstanceOf(CliError);
+    expect(error).toMatchObject({ exitCode: 4, code: 'PERMISSION_DENIED' });
+    expect((error as CliError).message).toContain(
+      'Required permission: platform.knowledge_doc.write.',
+    );
+  });
+});

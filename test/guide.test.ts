@@ -31,6 +31,12 @@ describe('bundled assistant skill', () => {
     expect(skill.frontmatter.description.length).toBeGreaterThan(0);
     expect(guide()).toBe(skill.body);
     expect(guide()).toContain('trooly auth status --json');
+    expect(guide()).toContain('platform.knowledge_doc.download');
+    expect(guide()).toContain('Owner, Admin, and Member; not Viewer or read-only API keys');
+    expect(guide()).toContain('platform.knowledge_doc.write');
+    expect(guide()).toContain('Owner and Admin only; not Member, Viewer, or read-only API keys');
+    expect(guide()).toContain('platform.knowledge_doc.read');
+    expect(guide()).toContain('online preview');
   });
 
   it('prints only the skill body without reading a profile or making requests', async () => {
