@@ -9,7 +9,7 @@ import { CliError, usageError } from '../http/errors';
 import type { Envelope } from '../http/paginate';
 
 type Document = components['schemas']['KnowledgeDocument'];
-type UploadRequest = components['schemas']['CreateDocumentUploadRequest'];
+type UploadRequest = Omit<components['schemas']['CreateDocumentUploadRequest'], 'private'>;
 
 const PERMISSION_DENIED_CODES = new Set(['HTTP_403', 'FORBIDDEN', 'PERMISSION_DENIED']);
 const DOC_PERMISSIONS_HELP =
@@ -89,7 +89,6 @@ export function registerDoc(program: Command): void {
     .description('Request an upload, transfer the file and complete it')
     .requiredOption('--kb <id>', 'Target knowledge base')
     .option('--title <title>', 'Document title (defaults to the filename)')
-    .option('--private', 'Create a private document')
     .option('--wait', 'Wait up to five minutes for processing')
     .addHelpText('after', DOC_WRITE_HELP)
     .action(async (file: string, opts, command: Command) => {
@@ -109,7 +108,6 @@ export function registerDoc(program: Command): void {
         title: opts.title ?? basename(file),
         file_type: type,
         file_size: info.size,
-        private: Boolean(opts.private),
       };
       const { client, json } = await context(command);
       let upload: Envelope<components['schemas']['KnowledgeUploadResponse']['data']>;

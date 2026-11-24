@@ -318,7 +318,6 @@ it('uploads, confirms and polls a document without sending API credentials to st
     title: 'notes.md',
     file_type: 'md',
     file_size: 13,
-    private: false,
   });
   expect(requests[1].body).toBe('test document');
   expect(requests[1].authorization).toBeUndefined();
@@ -512,6 +511,7 @@ describe('knowledge document RBAC help and permission hints', () => {
     const uploadHelp = helpText('upload');
     expect(uploadHelp).toContain('Required permission: platform.knowledge_doc.write');
     expect(uploadHelp).toContain('Owner and Admin only; not Member, Viewer, or read-only API keys');
+    expect(uploadHelp).not.toContain('--private');
 
     for (const subcommand of ['list', 'get']) {
       const readHelp = helpText(subcommand);

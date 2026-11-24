@@ -205,6 +205,7 @@ describe('command help and identity', () => {
     [['auth', 'help', 'unknown-command'], "unknown command 'unknown-command'"],
     [['project', 'get'], "missing required argument 'id'"],
     [['auth', '--unknown-option'], "unknown option '--unknown-option'"],
+    [['doc', 'upload', 'notes.md', '--kb', 'kb_1', '--private'], "unknown option '--private'"],
     [['--profile'], 'argument missing'],
     [['api', 'GET'], 'Specify METHOD and path'],
   ])('retains readable usage errors for %j', async (args, message) => {
