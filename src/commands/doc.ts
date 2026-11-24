@@ -9,7 +9,7 @@ import { CliError, usageError } from '../http/errors';
 import type { Envelope } from '../http/paginate';
 
 type Document = components['schemas']['KnowledgeDocument'];
-type UploadRequest = Omit<components['schemas']['CreateDocumentUploadRequest'], 'private'>;
+type UploadRequest = components['schemas']['CreateDocumentUploadRequest'];
 
 const PERMISSION_DENIED_CODES = new Set(['HTTP_403', 'FORBIDDEN', 'PERMISSION_DENIED']);
 const DOC_PERMISSIONS_HELP =

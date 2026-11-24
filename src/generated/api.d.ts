@@ -150,7 +150,7 @@ export interface paths {
         put?: never;
         /**
          * Request a document upload
-         * @description Creates an uploading document and a signed PUT URL valid for 30 minutes. Upload the file directly to that URL, then confirm using /documents/{doc}/complete. No inline content or storage object path is accepted. Unconfirmed uploads are cleaned after 24 hours. A cached upload is reauthorized before replay; a deleted document returns 404 instead. Service-account documents cannot be private. Permission is intersected with the API Key permissions; Viewer and read-only Keys cannot write. All resources are scoped to the current Environment.
+         * @description Creates an uploading document and a signed PUT URL valid for 30 minutes. Upload the file directly to that URL, then confirm using /documents/{doc}/complete. No inline content or storage object path is accepted. Unconfirmed uploads are cleaned after 24 hours. A cached upload is reauthorized before replay; a deleted document returns 404 instead. Permission is intersected with the API Key permissions; Viewer and read-only Keys cannot write. All resources are scoped to the current Environment.
          */
         post: operations["createDocumentUpload"];
         delete?: never;
@@ -170,7 +170,7 @@ export interface paths {
         put?: never;
         /**
          * Confirm an uploaded document
-         * @description Checks that the uploaded object exists and meets the file-size limit, then changes uploading to processing. Title and private are optional; omitted private preserves the value from upload creation. Only the human owner may set private=true; service-account documents cannot be private. Only uploading documents can be confirmed. Poll GET /documents/{doc} until ready or failed. Permission is intersected with the API Key permissions; Viewer and read-only Keys cannot write. All resources are scoped to the current Environment.
+         * @description Checks that the uploaded object exists and meets the file-size limit, then changes uploading to processing. Title is optional. Only uploading documents can be confirmed. Poll GET /documents/{doc} until ready or failed. Permission is intersected with the API Key permissions; Viewer and read-only Keys cannot write. All resources are scoped to the current Environment.
          */
         post: operations["completeDocumentUpload"];
         delete?: never;
@@ -222,7 +222,7 @@ export interface paths {
         head?: never;
         /**
          * Update or move a document
-         * @description Owner with write, or an administrator with manage. A move requires a readable target base in the same Environment. Being the knowledge base creator alone does not permit renaming, moving or changing document visibility. Only the human owner may set private=true; service-account documents cannot be private. Omitted fields are unchanged. Permission is intersected with the API Key permissions; Viewer and read-only Keys cannot write. All resources are scoped to the current Environment.
+         * @description Owner with write, or an administrator with manage. A move requires a readable target base in the same Environment. Being the knowledge base creator alone does not permit renaming or moving a document. Omitted fields are unchanged. Permission is intersected with the API Key permissions; Viewer and read-only Keys cannot write. All resources are scoped to the current Environment.
          */
         patch: operations["updateDocument"];
         trace?: never;
@@ -256,7 +256,7 @@ export interface paths {
         };
         /**
          * Get a document download URL
-         * @description Returns a signed download URL valid for 30 minutes. Deleted or unreadable documents return 404. Permission is intersected with the API Key permissions; Viewer and read-only Keys cannot write. All resources are scoped to the current Environment.
+         * @description Returns a signed download URL valid for 30 minutes. Deleted or unreadable documents return 404. Requires `platform.knowledge_doc.download` (Owner/Admin/Member; Viewer and read-only Keys cannot download). All resources are scoped to the current Environment.
          */
         get: operations["getDocumentDownload"];
         put?: never;
@@ -278,7 +278,7 @@ export interface paths {
         put?: never;
         /**
          * Search knowledge in the current Environment
-         * @description Both scope arrays omitted or empty means kb_0. Knowledge bases expand to non-private ready documents only, even for administrators. Explicit IDs may select readable private documents; readable documents that are not ready are skipped. An unreadable explicit document rejects the request with 403 PERMISSION_DENIED and details.document_ids. A cross-Environment knowledge base returns 404. At most 2000 documents may be expanded; larger scopes return 422 SCOPE_TOO_LARGE. An empty scope returns chunks=[] and mode=empty. top_k defaults to 5 and is at most 10. Before cached replay, all originally requested bases and documents are checked again, even documents that produced no chunk on the first request. An unreadable explicit document still returns 403 with details.document_ids; a deleted base returns 404. If a cached document remains readable but has moved outside the original scope, become private and excluded from base expansion, or is no longer ready, replay returns 409 CONFLICT. Use a new Idempotency-Key to run a fresh search against the current allowed scope. Permission is intersected with the API Key permissions; Viewer and read-only Keys cannot write. All resources are scoped to the current Environment.
+         * @description Both scope arrays omitted or empty means kb_0. Knowledge bases expand to ready documents in the current Environment. Readable documents that are not ready are skipped. An unreadable explicit document rejects the request with 403 PERMISSION_DENIED and details.document_ids. A cross-Environment knowledge base returns 404. At most 2000 documents may be expanded; larger scopes return 422 SCOPE_TOO_LARGE. An empty scope returns chunks=[] and mode=empty. top_k defaults to 5 and is at most 10. Before cached replay, all originally requested bases and documents are checked again, even documents that produced no chunk on the first request. An unreadable explicit document still returns 403 with details.document_ids; a deleted base returns 404. If a cached document remains readable but has moved outside the original scope or is no longer ready, replay returns 409 CONFLICT. Use a new Idempotency-Key to run a fresh search against the current allowed scope. Permission is intersected with the API Key permissions; Viewer and read-only Keys cannot write. All resources are scoped to the current Environment.
          */
         post: operations["searchKnowledge"];
         delete?: never;
@@ -3835,8 +3835,6 @@ export interface components {
              * @description File size in bytes; verified from the stored object when the upload is confirmed.
              */
             file_size: number;
-            /** @description Private documents are visible to the uploader, the creator of their named knowledge base, and administrators. Only a human owner can set true. Service-account documents cannot be private. */
-            private: boolean;
             status: components["schemas"]["KnowledgeDocumentStatus"];
             chunk_count: number;
             /** @description Automatically generated summary of the document content. Empty until the document is ready. */
@@ -3878,8 +3876,7 @@ export interface components {
          *       "knowledge_base_id": "kb_101",
          *       "title": "Returns policy",
          *       "file_type": "md",
-         *       "file_size": 1024,
-         *       "private": false
+         *       "file_size": 1024
          *     }
          */
         CreateDocumentUploadRequest: {
@@ -3894,36 +3891,25 @@ export interface components {
              * @description Declared bytes. md/txt: 1 MiB; pdf: 20 MiB; docx/xlsx: 15 MiB; pptx: 30 MiB. Actual object size is rechecked at confirmation.
              */
             file_size: number;
-            /**
-             * @description Private documents are visible to the uploader, the creator of their named knowledge base, and administrators. Only a human owner can set true. Service-account documents must use false.
-             * @default false
-             */
-            private: boolean;
         };
         /**
          * @example {
-         *       "title": "Returns policy",
-         *       "private": false
+         *       "title": "Returns policy"
          *     }
          */
         CompleteDocumentUploadRequest: {
             /** @description Optional replacement title. */
             title?: string;
-            /** @description Optional. Omit to retain the upload request value; false explicitly makes the document non-private. Only the human owner can set true. Private documents are visible to the uploader, the creator of their named knowledge base, and administrators. */
-            private?: boolean;
         };
         /**
          * @example {
          *       "title": "Returns policy v2",
-         *       "knowledge_base_id": "kb_0",
-         *       "private": false
+         *       "knowledge_base_id": "kb_0"
          *     }
          */
         UpdateDocumentRequest: {
             /** @description New non-blank title. Omit to keep the current title. */
             title?: string;
-            /** @description Private documents are visible to the uploader, the creator of their named knowledge base, and administrators. Only the human owner can set true; service-account documents cannot be private. */
-            private?: boolean;
             knowledge_base_id?: components["schemas"]["KnowledgeBaseId"];
         };
         /**
@@ -10646,7 +10632,7 @@ export interface components {
                 "application/json": components["schemas"]["ErrorResponse"];
             };
         };
-        /** @description Missing operation permission, resource readable but not manageable, invalid private ownership, or explicit search documents not readable. Search failures include details.document_ids. */
+        /** @description Missing operation permission, resource readable but not manageable, or explicit search documents not readable. Search failures include details.document_ids. */
         KnowledgePermissionDenied: {
             headers: {
                 [name: string]: unknown;
@@ -10656,7 +10642,7 @@ export interface components {
                  * @example {
                  *       "error": {
                  *         "code": "PERMISSION_DENIED",
-                 *         "message": "Missing operation permission, resource readable but not manageable, invalid private ownership, or explicit search documents not readable. Search failures include details.document_ids.",
+                 *         "message": "Missing operation permission, resource readable but not manageable, or explicit search documents not readable. Search failures include details.document_ids.",
                  *         "details": {
                  *           "document_ids": [
                  *             "doc_202"
@@ -11734,7 +11720,6 @@ export interface operations {
                      *           "title": "Returns policy",
                      *           "file_type": "md",
                      *           "file_size": 1024,
-                     *           "private": false,
                      *           "status": "uploading",
                      *           "chunk_count": 0,
                      *           "summary": "",
@@ -11812,7 +11797,6 @@ export interface operations {
                      *         "title": "Returns policy",
                      *         "file_type": "md",
                      *         "file_size": 1024,
-                     *         "private": false,
                      *         "status": "processing",
                      *         "chunk_count": 0,
                      *         "summary": "",
@@ -11877,7 +11861,6 @@ export interface operations {
                      *           "title": "Returns policy",
                      *           "file_type": "md",
                      *           "file_size": 1024,
-                     *           "private": false,
                      *           "status": "ready",
                      *           "chunk_count": 3,
                      *           "summary": "Returns and refund policy.",
@@ -11937,7 +11920,6 @@ export interface operations {
                      *         "title": "Returns policy",
                      *         "file_type": "md",
                      *         "file_size": 1024,
-                     *         "private": false,
                      *         "status": "ready",
                      *         "chunk_count": 3,
                      *         "summary": "Returns and refund policy.",
@@ -12041,7 +12023,6 @@ export interface operations {
                      *         "title": "Returns policy",
                      *         "file_type": "md",
                      *         "file_size": 1024,
-                     *         "private": false,
                      *         "status": "ready",
                      *         "chunk_count": 3,
                      *         "summary": "Returns and refund policy.",
@@ -12109,7 +12090,6 @@ export interface operations {
                      *         "title": "Returns policy",
                      *         "file_type": "md",
                      *         "file_size": 1024,
-                     *         "private": false,
                      *         "status": "processing",
                      *         "chunk_count": 0,
                      *         "summary": "",
